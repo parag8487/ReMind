@@ -1,0 +1,76 @@
+body {
+  font-family: serif;
+  margin: 0;
+  padding: 0;
+  width: 300px;
+  background-color: white;
+  color: black;
+  border: 10px solid black;
+}
+
+.container {
+  display: block;
+}
+
+header {
+  padding: 10px;
+  background: yellow;
+  border-bottom: 5px solid red;
+  text-align: center;
+}
+
+h1 {
+  font-size: 24px;
+  color: red;
+  text-decoration: underline;
+}
+
+.subtitle {
+  font-size: 14px;
+  font-style: italic;
+  color: blue;
+}
+
+.menu {
+  padding: 10px;
+  background-color: pink;
+}
+
+.card {
+  display: block;
+  background: white;
+  border: 4px ridge blue;
+  margin-bottom: 10px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.card:hover {
+  background-color: cyan;
+}
+
+.icon {
+  font-size: 30px;
+  text-align: center;
+}
+
+.info h2 {
+  color: green;
+  text-transform: uppercase;
+}
+
+.info p {
+  color: black;
+}
+
+.arrow {
+  display: none;
+}
+
+footer {
+  text-align: center;
+  padding: 10px;
+  background: black;
+  color: white;
+  font-weight: bold;
+}

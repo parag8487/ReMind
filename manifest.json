@@ -1,0 +1,67 @@
+{
+  "manifest_version": 3,
+  "name": "ReMind",
+  "version": "1.0.0",
+  "description": "A unified extension for TraceBack and Adaptive Focus.",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage",
+    "unlimitedStorage",
+    "scripting",
+    "sidePanel",
+    "tabCapture",
+    "desktopCapture",
+    "microphone"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "trial_tokens": [
+    "AhhrDh3K6/32Um1N4J5q0VOmNxNGyhDo1cjmcwU9I5vwF6FExuC1o6xfUIjL+D4y4PjUQG1lFd5ngUt8b3f+ZgQAAABueyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vYXBtbGdwaWhvZHBnaGJhaG5lYWVsbGNjamFuZ2lqZGsiLCJmZWF0dXJlIjoiQUlSZXdyaXRlckFQSSIsImV4cGlyeSI6MTc2OTQ3MjAwMH0="
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "features/traceback/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "ReMind",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "features/traceback/popup/popup.html"
+  },
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "features/traceback/popup/*",
+        "assets/*",
+        "popup/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

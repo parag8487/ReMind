@@ -1,0 +1,212 @@
+/* ============================================
+   TraceBack - Degraded UI (Refined)
+   ============================================ */
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0f0f0;
+  --border-default: #333333;
+  --text-primary: #000000;
+  --text-secondary: #555555;
+  --radius-lg: 0px;
+  --radius-full: 0px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: serif;
+  background-color: white;
+  color: black;
+  margin: 0;
+  padding: 0;
+}
+
+.app {
+  border: 3px solid #333;
+  margin: 5px;
+  height: calc(100vh - 10px);
+}
+
+.header {
+  background-color: #eee;
+  border-bottom: 2px solid #333;
+  padding: 5px;
+  text-align: center;
+}
+
+.header-content {
+  display: block;
+}
+
+.brand {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  text-decoration: underline;
+}
+
+.header-actions {
+  margin-top: 5px;
+}
+
+.header-action-btn {
+  background-color: #f9f9f9;
+  border: 1px solid #999;
+  padding: 3px 6px;
+  margin: 2px;
+  cursor: pointer;
+  display: inline-block;
+  width: auto;
+  height: auto;
+  color: black;
+}
+
+.header-action-btn:active {
+  background-color: #ccc;
+}
+
+.search-container {
+  background-color: #ddd;
+  padding: 5px;
+  border-bottom: 2px solid #333;
+}
+
+.search-wrapper {
+  background-color: white;
+  border: 1px solid #333;
+  padding: 2px;
+}
+
+.search-input {
+  width: 90%;
+  font-family: serif;
+  font-size: 14px;
+  border: 1px solid #ccc;
+}
+
+.mode-switcher {
+  background-color: #eee;
+  padding: 3px;
+  margin-top: 5px;
+  border: 1px solid #333;
+  text-align: center;
+}
+
+.mode-pill {
+  background-color: white;
+  border: 1px solid #333;
+  margin: 2px;
+  padding: 3px 8px;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 13px;
+}
+
+.mode-pill.active {
+  background-color: #333;
+  color: white;
+  font-weight: bold;
+}
+
+.content-area {
+  background-color: white;
+  padding: 5px;
+  height: 100%;
+  overflow-y: scroll;
+}
+
+.state-container {
+  border: 1px dashed #999;
+  padding: 10px;
+  background-color: #fafafa;
+  margin: 5px;
+  text-align: center;
+}
+
+.empty-illustration svg {
+  width: 50px;
+  height: 50px;
+  color: #777;
+}
+
+.state-title {
+  font-size: 16px;
+  color: #333;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+button {
+  font-family: serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: white;
+  border-left: 1px solid #ccc;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #999;
+  border: 1px solid #333;
+}
+
+/* History Items - Smaller */
+.timeline-item {
+  font-size: 12px;
+  padding: 5px;
+  border-bottom: 1px solid #eee;
+}
+
+.timeline-thumbnail img {
+  max-width: 80px;
+  max-height: 50px;
+  border: 1px solid #ccc;
+}
+
+/* Chat Styles */
+.ai-chat-fullpage {
+  background-color: #fafafa;
+  border: 2px solid #333;
+  padding: 5px;
+}
+
+.chat-input-bar {
+  border-top: 2px solid #333;
+  padding: 5px;
+  background: #eee;
+}
+
+.chat-messages-fullpage {
+  font-family: "Courier New", monospace;
+  color: #333;
+  font-size: 13px;
+}
+
+/* Chat Video/Image Size Adjustment */
+.chat-message video,
+.chat-message img,
+.chat-source-thumbnail {
+  max-width: 150px;
+  /* Constrain video size */
+  max-height: 100px;
+  width: auto;
+  height: auto;
+  border: 1px solid #999;
+  display: block;
+  margin: 5px 0;
+}
+
+.chat-source-item {
+  padding: 5px;
+  border: 1px solid #ccc;
+  margin: 2px;
+  font-size: 11px;
+}

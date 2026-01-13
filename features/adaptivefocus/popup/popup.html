@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdaptiveFocus</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="brand">
+        <div class="brand-icon">
+          <img src="../assets/icons/icon48.png" alt="AdaptiveFocus" width="32" height="32" style="border-radius: 8px;">
+        </div>
+        <div class="brand-content">
+          <h1>AdaptiveFocus</h1>
+          <p class="tagline">Tailored reading supports for your students</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Indicator -->
+    <div class="status" id="status">
+      <div class="status-indicator">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Checking AI...</span>
+      </div>
+    </div>
+
+    <!-- Grade Selection -->
+    <div class="grade-settings">
+      <label for="gradeLevel" class="grade-label">
+        Student grade band
+        <span class="grade-hint">Adjusts question style, vocabulary support, and typography.</span>
+      </label>
+      <select id="gradeLevel" class="grade-select">
+        <option value="lower">1st – 3rd grade</option>
+        <option value="upper">4th – 6th grade</option>
+        <option value="middle">7th – 8th grade</option>
+      </select>
+    </div>
+
+    <!-- Profile Selection -->
+    <div class="profiles-section">
+      <h2>Choose a support profile</h2>
+      
+      <div class="profile-card" data-profile="none">
+        <div class="profile-header">
+          <span class="profile-name">No adjustments</span>
+        </div>
+        <p class="profile-summary">Keep the original page without any changes.</p>
+      </div>
+
+      <div class="profile-card" data-profile="dyslexia">
+        <div class="profile-header">
+          <span class="profile-name">Dyslexia support</span>
+        </div>
+        <p class="profile-summary">
+          Applies research-based spacing and fonts, and provides simplified companion text.
+        </p>
+        <div class="profile-options">
+          <label for="dyslexiaLevel" class="profile-label">
+            Simplification level
+            <span class="profile-hint">Saved automatically for next time.</span>
+          </label>
+          <select id="dyslexiaLevel" class="profile-select">
+            <option value="low">Low – gentle editing</option>
+            <option value="medium">Medium – balanced</option>
+            <option value="high">High – maximum simplification</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="profile-card" data-profile="adhd">
+        <div class="profile-header">
+          <span class="profile-name">Attention support (ADHD)</span>
+        </div>
+        <p class="profile-summary">
+          Creates key-point summaries, highlights essentials, and breaks long text into shorter sections.
+        </p>
+        <div class="profile-options">
+          <label for="adhdSummaryLength" class="profile-label">
+            Summary length
+            <span class="profile-hint">Sets how much detail appears in the overview.</span>
+          </label>
+          <select id="adhdSummaryLength" class="profile-select">
+            <option value="short">Short – quick scan</option>
+            <option value="medium">Medium – added context</option>
+            <option value="long">Long – fuller overview</option>
+          </select>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button id="adaptBtn" class="btn btn-primary" disabled>
+        Apply adaptations
+      </button>
+      <button id="resetBtn" class="btn btn-secondary">
+        Restore original page
+      </button>
+    </div>
+    
+    <!-- Settings Toggle -->
+    <div class="settings-toggle">
+      <label class="toggle-label">
+        <input type="checkbox" id="autoAdapt">
+        <span class="toggle-slider"></span>
+        <span class="toggle-text">Auto-adapt all pages</span>
+      </label>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>Powered by Chrome built-in AI (Gemini Nano)</p>
+      <a href="#" id="helpLink">Teacher guide & documentation</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReMind</title>
+  <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ReMind</h1>
+      <p class="subtitle">Your AI Cognitive Assistant</p>
+    </header>
+    
+    <div class="menu">
+      <div class="card" id="btn-adaptive">
+        <div class="icon">🧠</div>
+        <div class="info">
+          <h2>Adaptive Focus</h2>
+          <p>Personalize web content for better accessibility and focus.</p>
+        </div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="card" id="btn-rezone">
+        <div class="icon">🪐</div>
+        <div class="info">
+          <h2>ReZone <span class="status-badge active" id="rezoneStatus">●</span></h2>
+          <p>Drift detection & gentle nudges to keep you focused.</p>
+          <div class="session-preview" id="sessionPreview" style="display: none;">
+            <small id="sessionInfo">📚 Active session • 0 mins</small>
+          </div>
+        </div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="card" id="btn-htmlcon">
+        <div class="icon">🛠️</div>
+        <div class="info">
+          <h2>HTMLify</h2>
+          <p>Convert Text, Images, and PDFs to standalone HTML files.</p>
+        </div>
+        <div class="arrow">→</div>
+      </div>
+      
+      <div class="card" id="btn-traceback">
+        <div class="icon">🔍</div>
+        <div class="info">
+          <h2>TraceBack</h2>
+          <p>Search your browsing history with natural language memory.</p>
+        </div>
+        <div class="arrow">↗</div>
+      </div>
+
+    </div>
+
+    <footer>
+      <p>ReMind</p>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReZone</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <button class="back-btn" id="backBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back
+        </button>
+      </div>
+      <div class="brand">
+        <div class="rezone-icon">🪐</div>
+        <div class="brand-content">
+          <h1>ReZone</h1>
+          <p class="tagline">Drift detection & focus recovery</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Area -->
+    <div class="content-area">
+      
+      <!-- Status Indicator -->
+      <div class="section" style="margin-top: 20px;">
+        <div class="session-info" style="border-left: 4px solid var(--success);">
+            <div class="info-item">
+                <div class="status-indicator">
+                    <span class="status-dot active" id="statusDot"></span>
+                    <span class="status-text" id="statusText">Active & Learning</span>
+                </div>
+                <!-- AI Status (Hidden by default) -->
+                <div class="ai-status-indicator" id="aiStatus" style="display: none;">
+                    <span style="font-size: 14px;">🤖</span>
+                    <span id="aiStatusText">Checking AI...</span>
+                    <button class="ai-download-btn" id="aiDownloadBtn" style="display: none; padding: 4px 8px; font-size: 10px; width: auto; margin:0;">Download AI</button>
+                </div>
+            </div>
+            <div class="info-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+                <span class="label">Context</span>
+                <span class="value" id="currentContext">Detecting...</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Session</span>
+                <span class="value" id="sessionTime">0 mins</span>
+            </div>
+        </div>
+      </div>
+
+      <!-- Goal Setting -->
+      <div class="section">
+        <h3>Study Goal</h3>
+        <div class="goal-input">
+          <input type="text" id="goalInput" placeholder="What is your main goal? (e.g. Studying)" maxlength="25">
+          <input type="text" id="topicInput" placeholder="Specific Topic (e.g. Algebra)" maxlength="30" style="display: none;">
+          <button id="setGoalBtn">Start Focus Session 🚀</button>
+        </div>
+        
+        <div class="current-goal" id="currentGoal" style="display: none;">
+          <div style="display:flex; flex-direction:column;">
+            <span class="goal-text" id="goalText"></span>
+            <span class="goal-topic" id="goalTopic"></span>
+          </div>
+          <button class="goal-clear" id="clearGoalBtn" title="Clear Goal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Emotional Tone Engine -->
+      <div class="section">
+        <h3>🎭 Emotional Tone</h3>
+        <p class="section-desc">How should ReZone talk to you?</p>
+        <div class="tone-options">
+          <div class="tone-option" data-tone="kid">
+            <div class="tone-icon">
+              <!-- Optimized Tiny: Teddy Bear / Cute Face -->
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C9 2 6.4 3.5 5 5.8C3.6 5.1 2 6.1 2 7.7C2 8.8 2.5 9.7 3.3 10.3C3.1 11.1 3 11.9 3 12.8C3 17.8 7 22 12 22S21 17.8 21 12.8C21 11.9 20.9 11.1 20.7 10.3C21.5 9.7 22 8.8 22 7.7C22 6.1 20.4 5.1 19 5.8C17.6 3.5 15 2 12 2ZM9 12.5C9 13.3 8.3 14 7.5 14S6 13.3 6 12.5 6.7 11 7.5 11 9 11.7 9 12.5ZM16.5 11C15.7 11 15 11.7 15 12.5S15.7 14 16.5 14 18 13.3 18 12.5 17.3 11 16.5 11ZM12 18C10 18 8.33 16.67 7.6 14.9 8.2 15.5 8.9 16 9.8 16.3 10.5 16.5 11.2 16.6 12 16.6C12.8 16.6 13.5 16.5 14.2 16.3 15.1 16 15.8 15.5 16.4 14.9 15.67 16.67 14 18 12 18Z"/>
+              </svg>
+            </div>
+            <div class="tone-info">
+              <div class="tone-name">Tiny Mode</div>
+              <div class="tone-example">"Welcome back! Let’s start again from where you stopped 😊"</div>
+            </div>
+          </div>
+          <div class="tone-option active" data-tone="standard">
+            <div class="tone-icon">
+              <!-- Optimized Standard: Book -->
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </div>
+            <div class="tone-info">
+              <div class="tone-name">Standard</div>
+              <div class="tone-example">"Welcome back! Let’s continue where you left off."</div>
+            </div>
+          </div>
+          <div class="tone-option" data-tone="playful">
+            <div class="tone-icon">
+              <!-- Optimized Playful: Devil-ish / Naughty -->
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z"/>
+                 <circle cx="9" cy="11" r="1.5"/>
+                 <circle cx="15" cy="11" r="1.5"/>
+                 <path d="M12 17.5c2.33 0 4.31-1.44 5.11-3.5H6.89c.8 2.06 2.78 3.5 5.11 3.5z"/>
+                 <path d="M5.5 5.5l2 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                 <path d="M18.5 5.5l-2 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="tone-info">
+              <div class="tone-name">Playful</div>
+              <div class="tone-example">"Aww, welcome back! Ready to pick up where you left off? 😌"</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekly Insights -->
+      <div class="section">
+        <h3>🧩 Insights</h3>
+        <div class="insights-container" id="insightsContainer">
+          <div class="insight-item">
+            <div class="insight-icon">📊</div>
+            <div class="insight-text">Analyzing your focus patterns...</div>
+          </div>
+        </div>
+        <button class="insights-btn" id="showInsightsBtn">View Detailed Insights</button>
+      </div>
+
+      <!-- Controls -->
+      <div class="section">
+        <div class="controls">
+          <button class="control-btn" id="pauseBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="4" width="4" height="16"></rect>
+              <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+            <span class="btn-text">Pause</span>
+          </button>
+          <button class="control-btn secondary" id="clearDataBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span class="btn-text">Clear Data</span>
+          </button>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

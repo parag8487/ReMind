@@ -2,7 +2,7 @@
 
 **Unified Cognitive AI Assistant. Recall everything, adapt everywhere.**
 
-ReMind combines the power of **TraceBack** (photographic memory) and **AdaptiveFocus** (learning accessibility) into a single, cohesive Chrome extension. **All data processing happens locally** using Chrome's built-in Gemini Nano AI, ensuring complete privacy.
+ReMind combines the power of **TraceBack** (photographic memory), **Adaptive Focus** (learning accessibility), **ReZone** (focus guardian), and **HTMLify** (content transformer) into a single, cohesive Chrome extension. **All data processing happens locally** using Chrome's built-in Gemini Nano AI, ensuring complete privacy.
 
 ---
 
@@ -13,17 +13,22 @@ ReMind utilizes a modern, privacy-first architecture powered by Chrome's on-devi
 ### Core Technologies
 - **AI Engine**: Google Gemini Nano (via Chrome Prompt API) – *Zero-latency, offline inference*.
 - **Orchestration**: Chrome Service Workers – *Background indexer & decision engine*.
-- **Storage**: IndexedDB – *High-performance local vector & content storage*.
-- **Isolation**: ShadowDOM – *Non-intrusive UI injection*.
+- **Storage**: IndexedDB (Images) & chrome.storage (State) – *Hybrid persistence layer*.
+- **OCR/Vision**: Tesseract.js (WASM) & PDF.js – *Client-side visual processing*.
 
 ### Module Stack
-- **TraceBack**:
-  - **OCR**: DOM Extraction + Vision API fallbacks.
-  - **Audio**: Web Speech API for real-time transcription.
-  - **Compression**: WebP for efficient snapshot storage.
-- **Adaptive Focus**:
+- **TraceBack** (Background):
+  - **Capture**: Offscreen Canvas + DOM Extraction.
+  - **Search**: TF-IDF + AI Semantic Expansion.
+- **Adaptive Focus** (Content Script):
   - **NLP**: Chrome Summarizer API for content distillation.
-  - **DOM**: MutationObserver for dynamic content adaptation.
+  - **Logic**: MutationObserver for dynamic DOM adaptation.
+- **ReZone** (Activity Monitor):
+  - **Drift Detection**: Real-time AI relevance scoring.
+  - **UI**: ShadowDOM injection for non-intrusive nudges.
+- **HTMLify** (Transformer):
+  - **Pipeline**: WASM OCR -> Gemini Nano restructuring.
+  - **Format**: Smart conversion to semantic HTML/CSS.
 
 ---
 

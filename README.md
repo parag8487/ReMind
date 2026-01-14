@@ -29,7 +29,7 @@ ReMind utilizes a modern, privacy-first architecture powered by Chrome's on-devi
 
 ## ✨ Key Features
 
-ReMind integrates two core modules:
+ReMind integrates four core modules:
 
 ### 1. TraceBack
 *Never lose track of what you've seen online.*
@@ -181,6 +181,27 @@ ReZone adapts its personality to your mood. You can choose how it talks to you:
 #### 🔒 Privacy First
 All distraction analysis happens **locally** using the Chrome Prompt API. Your browsing habits and diversion patterns never leave your device.
 
+### 4. HTMLify (Content Transformer)
+*Turn chaos into code.*
+
+#### 🎯 The Problem
+- **Locked Data**: Text trapped in PDFs, images, or screenshots is hard to edit or reuse.
+- **Messy OCR**: Standard OCR tools output unstructured text full of errors.
+- **Manual Coding**: Converting a design screenshot or a PDF report into a web page takes hours.
+
+#### ✨ The Solution
+HTMLify uses a multi-stage AI pipeline to restructure content into clean, semantic HTML:
+
+- 📷 **Image-to-HTML**: Drag a screenshot, get beautiful code. 
+  - Uses **Tesseract.js (WASM)** for client-side OCR.
+  - Uses **Gemini Nano** to interpret layout, fix OCR errors, and generate semantic HTML/CSS.
+- 📄 **PDF-to-HTML**: Extracts text from PDFs and intelligently formats it into headers, paragraphs, and lists.
+- 📝 **Text-to-HTML**: Turns messy notes into structured, styled documents.
+
+#### 🔒 Privacy First
+- **Zero Server Uploads**: Image recognition happens in-browser via WebAssembly.
+- **Local Intelligence**: Text structuring is performed by the on-device Gemini Nano model.
+
 ---
 
 ## 🛠️ Installation Requirements
@@ -324,6 +345,11 @@ ReMind is designed with a **Privacy-First** architecture.
 - Ensure you have downloaded the Gemini Nano model in `chrome://components`.
 - Check that the `Prompt API` flag is enabled in `chrome://flags`.
 - Only English content is fully supported at this time.
+- **Restart Required**: If the Optimization Guide is stuck or unavailable, **restart your PC and Chrome**. This often clears internal service hangs.
+
+**"TraceBack isn't capturing anything!"**
+- Ensure all flags are enabled.
+- **Restart Chrome**: If capturing fails despite flags being on, fully quit and restart Chrome to reset the background transaction services.
 
 **"I can't install the extension."**
 - Make sure you are loading the *unpacked* folder. The folder you select should contain the `manifest.json` file.
@@ -334,22 +360,37 @@ ReMind is designed with a **Privacy-First** architecture.
 
 ReMind uses a unified extension architecture to manage both features:
 
-```
+```text
 ReMind/
 ├── manifest.json           # Unified V3 Manifest
 ├── background.js          # Shared Service Worker & AI Orchestration
+├── assets/                # Shared Icons & Images
 ├── docs/                  # AI Setup & Documentation
-├── features/
-│   ├── traceback/         # TraceBack Module
-│   │   ├── background.js
-│   │   ├── content.js
-│   │   ├── lib/
-│   │   └── popup/
-│   └── adaptivefocus/     # Adaptive Focus Module
-│       ├── background/    # Service Worker Modules
-│       ├── content/       # Styles & Scripts
-│       └── popup/
-└── popup/                 # Main Menu (Router)
+├── popup/                 # Main Menu (Router)
+└── features/
+    ├── traceback/         # TraceBack Module (Memory)
+    │   ├── background.js
+    │   ├── content.js
+    │   ├── popup/         # Side Panel UI
+    │   ├── lib/           # IndexedDB & Semantic Search
+    │   ├── offscreen/     # Offscreen Canvas Processing
+    │   └── tools/         # Debugging & Diagnostics
+    ├── adaptivefocus/     # Adaptive Focus Module (Learning Accessibility)
+    │   ├── background/    # Service Worker Logic (Retry/Caching)
+    │   ├── content/       # DOM Injection & Styles
+    │   ├── popup/         # Profile Settings UI
+    │   └── assets/        # Feature-specific assets
+    ├── rezone/            # ReZone Module (Focus Guardian)
+    │   ├── content.js     # Drift Detection Logic
+    │   ├── popup.html     # Re-Entry Card UI
+    │   ├── popup.js       # Re-Entry Logic
+    │   ├── styles.css     # Shared Styles
+    │   └── assets/        # Tone Icons
+    └── htmlcon/           # HTMLify Module (Content Transformer)
+        ├── background.js  # Capture Handler
+        ├── popup/         # Converter UI
+        ├── lib/           # Tesseract WASM & PDF.js
+        └── cropper/       # Image Cropping Logic
 ```
 
 

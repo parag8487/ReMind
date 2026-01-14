@@ -19,10 +19,12 @@ let semanticSearch = null;
 let captureInterval = null;
 let isIndexBuilt = false;
 let initPromise = null;
+let creatingOffscreenDocument = null; // Promise for offscreen creation
 
 // Configuration
 const CAPTURE_INTERVAL_MS = 15000; // 15 seconds (Chrome has rate limits)
 const RETENTION_DAYS = 7; // Keep data for 7 days
+const OFFSCREEN_PATH = 'offscreen/offscreen.html';
 
 /**
  * Initialize the extension
@@ -39,12 +41,17 @@ async function initialize() {
 
   // Initialize semantic search
   semanticSearch = new SemanticSearch();
-
-  // Build semantic index from existing captures
-  await buildSemanticIndex();
+  // Pass storage manager to semantic search so it can load vectors if needed
+  semanticSearch.setStorageManager(storageManager);
 
   // Load settings from Chrome storage
   const settings = await loadSettings();
+
+  // Setup Offscreen Document for AI
+  await setupOffscreenDocument(OFFSCREEN_PATH);
+
+  // Build semantic index from existing captures
+  await buildSemanticIndex();
 
   // Start automatic capture
   startAutomaticCapture(settings.captureInterval || CAPTURE_INTERVAL_MS);
@@ -53,6 +60,34 @@ async function initialize() {
   scheduleCleanup(settings.retentionDays || RETENTION_DAYS);
 
   console.log('TraceBack: Initialized successfully');
+}
+
+/**
+ * Create and manage the offscreen document
+ */
+async function setupOffscreenDocument(path) {
+  // Check if offscreen document already exists
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL(path)]
+  });
+
+  if (existingContexts.length > 0) {
+    return;
+  }
+
+  // Create offscreen document
+  if (creatingOffscreenDocument) {
+    await creatingOffscreenDocument;
+  } else {
+    creatingOffscreenDocument = chrome.offscreen.createDocument({
+      url: path,
+      reasons: ['WORKERS'], // 'WORKERS' is a valid reason for background processing
+      justification: 'AI processing for semantic search and OCR'
+    });
+    await creatingOffscreenDocument;
+    creatingOffscreenDocument = null;
+  }
 }
 
 /**
@@ -116,7 +151,7 @@ async function captureCurrentTab() {
       return;
     }
 
-    // Check if content has changed
+    // Check if content has changed (skip duplicate screenshots to save processing)
     if (!captureManager.hasContentChanged(screenshot)) {
       console.log('TraceBack: Content unchanged, skipping capture');
       return;
@@ -132,12 +167,14 @@ async function captureCurrentTab() {
       title: tabInfo.title,
       screenshot: screenshot,
       domText: domText,
-      extractedText: domText, // Will be enhanced by AI in offscreen document
-      favIconUrl: tabInfo.favIconUrl
+      extractedText: domText, // Will be enhanced by AI
+      favIconUrl: tabInfo.favIconUrl,
+      processed: false // Flag to track if AI processing is done
     };
 
-    // Save to storage
+    // Save to storage (initial save without vector/OCR)
     const captureId = await storageManager.saveCapture(capture);
+    capture.id = captureId;
 
     // Notify any open popups/sidebars that a new capture was saved
     try {
@@ -145,15 +182,11 @@ async function captureCurrentTab() {
         action: 'captureAdded',
         captureId: captureId,
         timestamp: capture.timestamp
-      }).catch(() => {
-        // Ignore errors if no popup is open
-      });
-    } catch (e) {
-      // Popup might not be open, that's okay
-    }
+      }).catch(() => { });
+    } catch (e) { }
 
-    // Process with AI in offscreen document (async, don't block)
-    processWithAI(captureId, screenshot, domText);
+    // Process with AI in offscreen document (async, non-blocking)
+    processWithAI(capture);
 
     console.log(`TraceBack: Captured ${tabInfo.title} (ID: ${captureId})`);
   } catch (error) {
@@ -182,7 +215,6 @@ async function extractDOMText(tabId) {
     return response?.text || '';
   } catch (error) {
     // Silently fail - content script might not be compatible with this page
-    // (e.g., chrome:// pages, extension pages)
     return '';
   }
 }
@@ -209,29 +241,59 @@ async function buildSemanticIndex() {
 }
 
 /**
- * Process capture with AI (offscreen document for DOM access)
- * This is a placeholder - actual AI processing happens in popup/search
- * because service workers have limitations with canvas/DOM APIs
+ * Process capture with AI (Offscreen Document)
  */
-async function processWithAI(captureId, screenshot, domText) {
-  // Note: AI processing will happen in the popup when searching
-  // Service workers can't use canvas or create Image elements
-  // We store the raw screenshot and process it on-demand
-  console.log(`TraceBack: Capture ${captureId} queued for AI processing`);
+async function processWithAI(capture) {
+  console.log(`TraceBack: Sending Capture ${capture.id} to AI Worker...`);
 
-  // Add new capture to semantic index
-  if (isIndexBuilt) {
-    try {
-      const capture = await storageManager.getById(captureId);
-      if (capture) {
-        semanticSearch.addToIndex(capture);
-        console.log(`TraceBack: Added capture ${captureId} to semantic index`);
-      }
-    } catch (error) {
-      console.error('TraceBack: Error adding to semantic index:', error);
+  // Ensure offscreen document exists
+  await setupOffscreenDocument(OFFSCREEN_PATH);
+
+  // Send message to offscreen document
+  chrome.runtime.sendMessage({
+    target: 'offscreen',
+    action: 'analyze_capture',
+    payload: {
+      id: capture.id,
+      text: `${capture.title} ${capture.url} ${capture.domText}`.substring(0, 1000) // Limit text for speed
+      // screenshotUrl removed for text-only processing
     }
-  }
+  });
 }
+
+/**
+ * Listen for results from Offscreen Worker
+ */
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'analysis_complete') {
+    (async () => {
+      const { id, embedding } = request.result;
+      console.log(`TraceBack: AI Analysis Complete for ID ${id}`);
+
+      try {
+        const capture = await storageManager.getById(id);
+        if (capture) {
+          // Update capture with AI results
+          const updates = {
+            processed: true,
+            embedding: embedding // Dense vector for semantic search
+          };
+
+          await storageManager.updateCapture(id, updates);
+
+          // Add to running index
+          const updatedCapture = { ...capture, ...updates };
+          semanticSearch.addToIndex(updatedCapture);
+
+          console.log(`TraceBack: Updated capture ${id} with AI data`);
+        }
+      } catch (e) {
+        console.error('Error updating capture with AI results:', e);
+      }
+    })();
+  }
+});
+
 
 /**
  * Schedule cleanup of old captures
@@ -272,9 +334,6 @@ async function performCleanup(retentionDays) {
 /**
  * Handle messages from popup/content scripts
  */
-/**
- * Handle messages from popup/content scripts
- */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Execute all logic after initialization ensures storage/index are ready
   (async () => {
@@ -285,19 +344,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const useSemanticSearch = request.semantic || false;
 
         if (useSemanticSearch && isIndexBuilt) {
-          // Use semantic search with AI
-          storageManager.getAll().then(allCaptures => {
-            return semanticSearch.search(request.query, allCaptures);
-          }).then(results => {
+          try {
+            // 1. Get query embedding from offscreen
+            const vectorResponse = await chrome.runtime.sendMessage({
+              target: 'offscreen',
+              action: 'embed_query',
+              payload: { text: request.query }
+            });
+
+            const queryVector = vectorResponse?.vector;
+
+            // 2. Perform search
+            const allCaptures = await storageManager.getAll();
+            const results = await semanticSearch.search(request.query, allCaptures, queryVector);
+
             sendResponse({ results, semantic: true });
-          }).catch(error => {
-            console.error('Semantic search failed, falling back to keyword search:', error);
-            return storageManager.search(request.query);
-          }).then(results => {
-            if (results) sendResponse({ results, semantic: false });
-          }).catch(error => {
-            sendResponse({ error: error.message });
-          });
+          } catch (error) {
+            console.error('Semantic search failed, falling back to keyword:', error);
+            // Fallback
+            const results = await storageManager.search(request.query);
+            sendResponse({ results, semantic: false });
+          }
         } else {
           // Use keyword search
           storageManager.search(request.query).then(results => {
@@ -348,6 +415,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }).catch(error => {
           sendResponse({ error: error.message });
         });
+        return;
+      }
+      if (request.action === 'proxy_ai_request') {
+        // Ensure offscreen exists
+        await setupOffscreenDocument(OFFSCREEN_PATH);
+
+        // Forward to offscreen
+        try {
+          const response = await chrome.runtime.sendMessage({
+            target: 'offscreen',
+            action: request.originalAction,
+            payload: request.payload
+          });
+          sendResponse(response);
+        } catch (e) {
+          sendResponse({ error: e.message });
+        }
         return;
       }
     } catch (err) {

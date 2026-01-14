@@ -2587,7 +2587,7 @@ async function handleAskAI() {
 
     // Filter for only highly relevant results (score > 10 for better accuracy)
     // Only include results with actual search scores (meaning they matched the query)
-    const relevantResults = allResults.filter(r => r.searchScore && r.searchScore > 10);
+    const relevantResults = allResults.filter(r => r.searchScore && r.searchScore > 0.1);
 
     console.log(`🤖 Ask AI: ${relevantResults.length} relevant results (score > 10)`);
     if (relevantResults.length > 0) {
@@ -2613,7 +2613,7 @@ async function handleAskAI() {
     const minScore = topScore * 0.5; // At least 50% of the top score
 
     const topResults = [];
-    for (let i = 0; i < relevantResults.length && topResults.length < 6; i++) {
+    for (let i = 0; i < relevantResults.length && topResults.length < 10; i++) {
       const result = relevantResults[i];
 
       // Include if score is within 50% of top score

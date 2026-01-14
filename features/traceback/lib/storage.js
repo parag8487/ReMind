@@ -63,6 +63,36 @@ class StorageManager {
   }
 
   /**
+   * Update an existing capture
+   * @param {number} id - Capture ID
+   * @param {Object} updates - Fields to update
+   */
+  async updateCapture(id, updates) {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+
+      const getRequest = store.get(id);
+
+      getRequest.onsuccess = () => {
+        const capture = getRequest.result;
+        if (!capture) {
+          reject(new Error('Capture not found'));
+          return;
+        }
+
+        const updatedCapture = { ...capture, ...updates };
+        const putRequest = store.put(updatedCapture);
+
+        putRequest.onsuccess = () => resolve(updatedCapture);
+        putRequest.onerror = () => reject(putRequest.error);
+      };
+
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
+
+  /**
    * Calculate Levenshtein distance for fuzzy matching
    * @param {string} a - First string
    * @param {string} b - Second string

@@ -203,9 +203,21 @@ HTMLify uses a multi-stage AI pipeline to restructure content into clean, semant
 - 📄 **PDF-to-HTML**: Extracts text from PDFs and intelligently formats it into headers, paragraphs, and lists.
 - 📝 **Text-to-HTML**: Turns messy notes into structured, styled documents.
 
-#### 🔒 Privacy First
-- **Zero Server Uploads**: Image recognition happens in-browser via WebAssembly.
-- **Local Intelligence**: Text structuring is performed by the on-device Gemini Nano model.
+### 5. System Check (AI Diagnostics)
+*Know if your brain is ready.*
+
+#### 🎯 The Problem
+- **Complex Setup**: Setting up local AI models involves flags, downloads, and specific browser versions.
+- **Silent Failures**: Users don't know why AI features aren't working if a flag is missed.
+
+#### ✨ The Solution
+ReMind includes a built-in **AI Diagnostic Tool** accessible right from the main menu:
+- 🤖 **One-Click Verification**: Instantly checks if Gemini Nano is available.
+- 🚦 **Visual Status**:
+  - ✅ **Green (Ready)**: AI is active and fully functional.
+  - ⬇️ **Yellow (Downloading)**: Model is currently downloading in the background.
+  - ❌ **Red (Error)**: AI flags are disabled or model is missing.
+- 🛡️ **Robust Checking**: Tests both modern (`window.ai`) and legacy (`window.LanguageModel`) APIs across different contexts.
 
 ---
 
@@ -230,6 +242,12 @@ You need **Google Chrome version 128+** (Canary or Dev channel recommended for l
 3. Click **Check for update**.
 4. Wait for it to show a version number (it may take a few minutes to download the ~1.5GB model).
    - *Note: If it says "Component not updated", the model might already be downloading or installed.*
+
+### 🔄 Verify Setup with ReMind
+After installing the extension:
+1. Click the **ReMind icon** in the toolbar.
+2. Click the **"Check AI System Status"** button at the bottom.
+3. If it says **"AI is active and ready!"**, you are good to go!
 
 ### ⚠️ Troubleshooting: "I don't see the Optimization Guide!"
 **Critical Check:** Are you using **Chrome Canary**? This feature often does *not* work on standard Chrome or even Chrome Dev.

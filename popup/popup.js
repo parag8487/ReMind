@@ -94,3 +94,100 @@ document.getElementById('btn-htmlcon').addEventListener('click', () => {
   // Navigate to HTML Converter popup
   window.location.href = '../features/htmlcon/popup/popup.html';
 });
+
+document.getElementById('btn-ai-check').addEventListener('click', async () => {
+  const resultBox = document.getElementById('ai-result-box');
+  const statusText = document.getElementById('ai-status-text');
+  const statusIcon = document.getElementById('ai-status-icon');
+
+  // Show the result box immediately
+  resultBox.style.display = 'flex';
+  statusText.textContent = "Checking capabilities...";
+  statusIcon.textContent = "⏳";
+  statusText.style.color = "#586069";
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    let availability = 'no';
+    let source = 'main-world';
+
+    try {
+      // 1. Try INJECT CHECK into Main World
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: 'MAIN',
+        func: async () => {
+          try {
+            // Attempt 1: Modern `window.ai`
+            if (window.ai && window.ai.languageModel) {
+              const capabilities = await window.ai.languageModel.capabilities();
+              return capabilities.available;
+            }
+            // Attempt 2: Legacy `window.LanguageModel`
+            if (window.LanguageModel) {
+              return await window.LanguageModel.availability();
+            }
+            return 'not-found';
+          } catch (e) {
+            return 'error::' + e.message;
+          }
+        }
+      });
+      availability = results[0]?.result;
+
+    } catch (injectionError) {
+      console.warn("[ReMind] Script injection failed, checking popup context.", injectionError);
+      source = 'popup-context';
+
+      // 2. Fallback: Check LOCALLY in Popup
+      try {
+        if (window.ai && window.ai.languageModel) {
+          const capabilities = await window.ai.languageModel.capabilities();
+          availability = capabilities.available;
+        } else if (window.LanguageModel) {
+          availability = await window.LanguageModel.availability();
+        } else {
+          availability = 'not-found';
+        }
+      } catch (localError) {
+        availability = 'error::' + localError.message;
+      }
+    }
+
+    // 3. PROCESS RESULTS
+    console.log(`[ReMind] Availability (${source}):`, availability);
+
+    if (availability === 'readily' || availability === 'available') {
+      statusText.textContent = "AI is active and ready!"; // Success
+      statusText.style.color = "#28a745";
+      statusIcon.textContent = "✅";
+    } else if (availability === 'after-download') {
+      statusText.textContent = "Model downloading... Please wait."; // Warning
+      statusText.style.color = "#d39e00";
+      statusIcon.textContent = "⬇️";
+    } else if (availability === 'no') {
+      statusText.textContent = "AI not enabled."; // Error
+      statusText.style.color = "#dc3545";
+      statusIcon.textContent = "❌";
+    } else if (typeof availability === 'string' && availability.startsWith('error::')) {
+      statusText.textContent = "Check Failed: " + availability.split('::')[1];
+      statusText.style.color = "#dc3545";
+      statusIcon.textContent = "⚠️";
+    } else if (availability === 'not-found') {
+      statusText.textContent = "AI APIs not found.";
+      statusText.style.color = "#dc3545";
+      statusIcon.textContent = "❌";
+    } else {
+      statusText.textContent = `Status: "${availability}"`;
+      statusText.style.color = "#d39e00";
+      statusIcon.textContent = "❓";
+    }
+
+  } catch (criticalError) {
+    console.error("AI Check Critical Failure:", criticalError);
+    statusText.textContent = "Check failed completely.";
+    statusText.style.color = "#dc3545";
+    statusIcon.textContent = "🚫";
+  }
+});

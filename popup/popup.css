@@ -186,3 +186,38 @@ footer {
     transform: translateY(0);
   }
 }
+
+/* Download UI */
+.ai-download-btn {
+  width: 100%;
+  padding: 8px 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.ai-download-btn:hover {
+  background: #0056b3;
+}
+
+.progress-container {
+  width: 100%;
+  height: 8px;
+  background: #e1e4e8;
+  border-radius: 4px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #28a745;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}

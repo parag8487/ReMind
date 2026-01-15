@@ -242,6 +242,11 @@ You need **Google Chrome version 128+** (Canary or Dev channel recommended for l
 3. Click **Check for update**.
 4. Wait for it to show a version number (it may take a few minutes to download the ~1.5GB model).
    - *Note: If it says "Component not updated", the model might already be downloading or installed.*
+5. **Alternative Verification (If component is missing)**:
+   - If you **cannot find** "Optimization Guide On Device Model" in the list:
+   - Open ReMind -> **TraceBack** -> Click **Download AI Model**.
+   - This will force the component to start downloading.
+   - Refresh `chrome://components` and you should now see it appearing and updating.
 
 ### 🔄 Verify Setup with ReMind
 After installing the extension:

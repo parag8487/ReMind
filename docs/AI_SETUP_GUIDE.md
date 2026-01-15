@@ -53,6 +53,11 @@ chrome://settings/help
 3. Click: **"Check for update"**
 4. Wait for download (~1.5 GB, takes 5-15 minutes)
 5. Version should change from "0.0.0.0" to something like "2026.XX.XX.XXXX"
+6. **Alternative Verification (If component is missing)**:
+   - If you **cannot find** "Optimization Guide On Device Model" in the list:
+   - Open ReMind -> **TraceBack** -> Click **Download AI Model**.
+   - This will force the component to start downloading.
+   - Refresh `chrome://components` and you should now see it appearing and updating.
 
 ### D. Verify AI is Ready
 

@@ -128,12 +128,12 @@ class ReZone {
 
     startDistractionTimer() {
         this.clearDistractionTimer();
-        console.log(`%c[ReZone] Timer Started (20s) for: ${document.title.substring(0, 20)}...`, "color: #aaa");
-        // Check after 20 seconds of continuous focus
+        console.log(`%c[ReZone] Timer Started (10s) for: ${document.title.substring(0, 20)}...`, "color: #aaa");
+        // Check after 10 seconds of continuous focus
         this.distractionTimer = setTimeout(() => {
             console.log("%c[ReZone] Timer Fired! Checking...", "color: orange");
             this.checkDistraction();
-        }, 20000);
+        }, 10000);
     }
 
     clearDistractionTimer() {

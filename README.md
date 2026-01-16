@@ -240,13 +240,24 @@ You need **Google Chrome version 128+** (Canary or Dev channel recommended for l
 1. Go to `chrome://components`
 2. Find **Optimization Guide On Device Model**.
 3. Click **Check for update**.
-4. Wait for it to show a version number (it may take a few minutes to download the ~1.5GB model).
-   - *Note: If it says "Component not updated", the model might already be downloading or installed.*
-5. **Alternative Verification (If component is missing)**:
-   - If you **cannot find** "Optimization Guide On Device Model" in the list:
-   - Open ReMind -> **TraceBack** -> Click **Download AI Model**.
-   - This will force the component to start downloading.
-   - Refresh `chrome://components` and you should now see it appearing and updating.
+4. If the component is **missing** or stuck at "0.0.0.0":
+   - Open ReMind's main menu.
+   - Click "Check AI System Status". If it says "Downloadable" or "Unavailable", verify your flags.
+   - If directed, go to **TraceBack** (click the "TraceBack" card).
+   - In TraceBack, click the **"Download AI Model"** button.
+   - **Wait** for the download to reach 100% or "Complete".
+5. Return to `chrome://components`:
+   - Click "Check for update" again.
+   - Verify that **Optimization Guide On Device Model** now shows a version number (e.g., `2024.1.1.1`) and status says "Up-to-date" or "Updated" (not "Downloading").
+6. **Verify Critical Flags**:
+   - Go to `chrome://flags/#optimization-guide-on-device-model`.
+     - Set to: **Enabled BypassPerfRequirement**.
+   - Go to `chrome://flags/#prompt-api-for-gemini-nano`.
+     - Set to: **Enabled**.
+   - Go to `chrome://flags/#prompt-api-for-gemini-nano-multimodal-input`.
+     - Set to: **Enabled**.
+   - **Relaunch** Chrome if you made changes.
+7. **Final Check**: Open ReMind main popup -> "Check AI System Status" -> Should be ✅ Green.
 
 ### 🔄 Verify Setup with ReMind
 After installing the extension:

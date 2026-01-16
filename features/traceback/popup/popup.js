@@ -1916,22 +1916,60 @@ async function loadSettings() {
     const intervalSelect = document.getElementById('captureInterval');
     const retentionSelect = document.getElementById('retentionDays');
 
-    if (result.captureInterval) {
+    if (result.captureInterval && intervalSelect) {
       intervalSelect.value = result.captureInterval;
     }
-    if (result.retentionDays) {
+    if (result.retentionDays && retentionSelect) {
       retentionSelect.value = result.retentionDays;
     }
 
     // Add change listeners
-    intervalSelect.addEventListener('change', () => {
-      chrome.storage.sync.set({ captureInterval: parseInt(intervalSelect.value) });
-    });
+    if (intervalSelect) {
+      // Remove old listeners to avoid duplicates if called multiple times (though simple assignment overwrites nothing, addEventListener stacks)
+      // Ideally we'd use onchange but addEventListener is fine if we don't spam open/close. 
+      // Weakness here: if user opens settings multiple times, listeners stack. 
+      // But standard practice in these simple extensions often ignores this. 
+      // Let's use a cleaner approach by cloning or just assume it's fine for MVP.
+      // Actually, better to check if we already added them or just define them once globally. 
+      // Given the constraints, I'll stick to the existing pattern but add the storage logic.
+      const newInterval = intervalSelect.cloneNode(true);
+      intervalSelect.parentNode.replaceChild(newInterval, intervalSelect);
+      newInterval.addEventListener('change', () => {
+        chrome.storage.sync.set({ captureInterval: parseInt(newInterval.value) });
+      });
 
-    retentionSelect.addEventListener('change', () => {
-      chrome.storage.sync.set({ retentionDays: parseInt(retentionSelect.value) });
-    });
+      const newRetention = retentionSelect.cloneNode(true);
+      retentionSelect.parentNode.replaceChild(newRetention, retentionSelect);
+      newRetention.addEventListener('change', () => {
+        chrome.storage.sync.set({ retentionDays: parseInt(newRetention.value) });
+      });
+    }
   });
+
+  // Calculate and display storage usage for the Settings panel
+  const settingsStorageEl = document.getElementById('settingsStorageUsage');
+  if (settingsStorageEl) {
+    settingsStorageEl.textContent = 'Calculating...';
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getStats' });
+      if (response && response.stats) {
+        // navigator.storage.estimate returns bytes for the origin
+        // response.stats.storageUsed is already the byte count from estimate.app
+        const bytes = response.stats.storageUsed;
+        if (typeof bytes === 'number') {
+          const mb = (bytes / (1024 * 1024)).toFixed(2);
+          settingsStorageEl.textContent = `${mb} MB`;
+        } else {
+          settingsStorageEl.textContent = 'Unknown';
+        }
+      } else {
+        settingsStorageEl.textContent = 'Unavailable';
+      }
+    } catch (e) {
+      console.error('Failed to load storage stats:', e);
+      settingsStorageEl.textContent = 'Error';
+    }
+  }
 }
 
 /**
@@ -3548,30 +3586,54 @@ async function loadAnalytics(view = currentAnalyticsView) {
 
     // Render top domains
     const topDomainsList = document.getElementById('topDomainsList');
-    topDomainsList.innerHTML = topDomains.map(([domain, count]) => {
-      const percentage = ((count / total) * 100).toFixed(1);
-      const lastVisit = new Date(domainLastSeen[domain]);
-      const timeAgo = formatTimeAgo(lastVisit);
 
-      return `
-        <div class="site-card">
-          <div class="site-header">
-            <img class="site-favicon" src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="${domain}">
-            <div class="site-name">${domain}</div>
-          </div>
-          <div class="site-stats">
-            <div class="site-stat">
-              <span class="site-stat-value">${count}</span>
-              <span>visits</span>
-            </div>
-            <div class="site-stat">
-              <span class="site-stat-value">${percentage}%</span>
-              <span>of total</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+    // Clear and render top domains safely
+    topDomainsList.innerHTML = '';
+
+    topDomains.forEach(([domain, count]) => {
+      const percentage = ((count / total) * 100).toFixed(1);
+
+      const siteCard = document.createElement('div');
+      siteCard.className = 'site-card';
+
+      const siteHeader = document.createElement('div');
+      siteHeader.className = 'site-header';
+
+      const favicon = document.createElement('img');
+      favicon.className = 'site-favicon';
+      favicon.alt = domain;
+      favicon.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+      favicon.onerror = () => {
+        favicon.src = '../icons/icon48.png'; // Fallback to app icon or transparent
+        favicon.style.opacity = '0.5';
+      };
+
+      const siteName = document.createElement('div');
+      siteName.className = 'site-name';
+      siteName.textContent = domain;
+
+      siteHeader.appendChild(favicon);
+      siteHeader.appendChild(siteName);
+
+      const siteStats = document.createElement('div');
+      siteStats.className = 'site-stats';
+
+      const visitsStat = document.createElement('div');
+      visitsStat.className = 'site-stat';
+      visitsStat.innerHTML = `<span class="site-stat-value">${count}</span><span>visits</span>`;
+
+      const percentStat = document.createElement('div');
+      percentStat.className = 'site-stat';
+      percentStat.innerHTML = `<span class="site-stat-value">${percentage}%</span><span>of total</span>`;
+
+      siteStats.appendChild(visitsStat);
+      siteStats.appendChild(percentStat);
+
+      siteCard.appendChild(siteHeader);
+      siteCard.appendChild(siteStats);
+
+      topDomainsList.appendChild(siteCard);
+    });
 
     // Render activity chart based on view
     if (view === 'daily') {
@@ -4012,42 +4074,78 @@ async function handleTranscriptionComplete() {
       transcriptionStatus.textContent = 'No audio detected';
     }
     if (transcriptEmpty) {
-      transcriptEmpty.innerHTML = `
-        <div style="text-align: center; max-width: 400px; margin: 0 auto; padding: 2rem;">
-          <div style="font-size: 1.125rem; font-weight: 600; color: #18181b; margin-bottom: 0.75rem; letter-spacing: -0.01em;">No Audio Detected</div>
-          <div style="font-size: 0.9375rem; color: #71717a; line-height: 1.6; margin-bottom: 2rem;">
-            The recording didn't capture any audio. This usually happens when:
-          </div>
-          <div style="text-align: left; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-            <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
-              <div style="width: 4px; height: 4px; background: #ef4444; border-radius: 50%; margin-top: 0.5rem; flex-shrink: 0;"></div>
-              <div>
-                <div style="font-weight: 600; font-size: 0.875rem; color: #18181b; margin-bottom: 0.25rem;">Audio sharing wasn't enabled</div>
-                <div style="font-size: 0.8125rem; color: #71717a;">Make sure to check "Share audio" when selecting a tab</div>
-              </div>
+      transcriptEmpty.innerHTML = '';
+
+      const container = document.createElement('div');
+      container.style.cssText = 'text-align: center; max-width: 400px; margin: 0 auto; padding: 2rem;';
+
+      const title = document.createElement('div');
+      title.style.cssText = 'font-size: 1.125rem; font-weight: 600; color: #18181b; margin-bottom: 0.75rem; letter-spacing: -0.01em;';
+      title.textContent = 'No Audio Detected';
+
+      const description = document.createElement('div');
+      description.style.cssText = 'font-size: 0.9375rem; color: #71717a; line-height: 1.6; margin-bottom: 2rem;';
+      description.textContent = "The recording didn't capture any audio. This usually happens when:";
+
+      const checklist = document.createElement('div');
+      checklist.style.cssText = 'text-align: left; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;';
+
+      const listItems = [
+        ['Audio sharing wasn\'t enabled', 'Make sure to check "Share audio" when selecting a tab'],
+        ['The tab had no audio playing', 'Start recording when audio is actively playing'],
+        ['Tab volume was muted', 'Ensure the tab\'s audio is unmuted']
+      ];
+
+      listItems.forEach(([head, sub]) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display: flex; gap: 0.75rem; margin-bottom: 1rem;';
+        if (head === listItems[2][0]) item.style.marginBottom = '0';
+
+        item.innerHTML = `
+            <div style="width: 4px; height: 4px; background: #ef4444; border-radius: 50%; margin-top: 0.5rem; flex-shrink: 0;"></div>
+            <div>
+              <div style="font-weight: 600; font-size: 0.875rem; color: #18181b; margin-bottom: 0.25rem;">${head}</div>
+              <div style="font-size: 0.8125rem; color: #71717a;">${sub}</div>
             </div>
-            <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
-              <div style="width: 4px; height: 4px; background: #ef4444; border-radius: 50%; margin-top: 0.5rem; flex-shrink: 0;"></div>
-              <div>
-                <div style="font-weight: 600; font-size: 0.875rem; color: #18181b; margin-bottom: 0.25rem;">The tab had no audio playing</div>
-                <div style="font-size: 0.8125rem; color: #71717a;">Start recording when audio is actively playing</div>
-              </div>
-            </div>
-            <div style="display: flex; gap: 0.75rem;">
-              <div style="width: 4px; height: 4px; background: #ef4444; border-radius: 50%; margin-top: 0.5rem; flex-shrink: 0;"></div>
-              <div>
-                <div style="font-weight: 600; font-size: 0.875rem; color: #18181b; margin-bottom: 0.25rem;">Tab volume was muted</div>
-                <div style="font-size: 0.8125rem; color: #71717a;">Ensure the tab's audio is unmuted</div>
-              </div>
-            </div>
-          </div>
-          <button onclick="" data-action="hideTranscription" class="js-transcription-btn" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(59, 130, 246, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(59, 130, 246, 0.3)'">
-            Try Again
-          </button>
-        </div>
-      `;
+          `;
+        checklist.appendChild(item);
+      });
+
+      const tryAgainBtn = document.createElement('button');
+      tryAgainBtn.className = 'js-transcription-btn';
+      tryAgainBtn.dataset.action = 'hideTranscription';
+      tryAgainBtn.textContent = 'Try Again';
+      tryAgainBtn.style.cssText = 'display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
+
+      // Add hover effects via JS since we can't use inline CSS pseudo-classes easily here without appending a style tag
+      tryAgainBtn.onmouseover = function () {
+        this.style.transform = 'translateY(-2px)';
+        this.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+      };
+      tryAgainBtn.onmouseout = function () {
+        this.style.transform = 'translateY(0)';
+        this.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
+      };
+
+      // Re-attach the click handler logic
+      tryAgainBtn.onclick = function () {
+        const mainView = document.getElementById('mainView');
+        const transcriptionView = document.getElementById('transcriptionView');
+        if (mainView && transcriptionView) {
+          transcriptionView.style.display = 'none';
+          mainView.style.display = 'block';
+          // Reset
+          audioChunks = [];
+        }
+      };
+
+      container.appendChild(title);
+      container.appendChild(description);
+      container.appendChild(checklist);
+      container.appendChild(tryAgainBtn);
+
+      transcriptEmpty.appendChild(container);
     }
-    // Don't reset state yet - let user click "Try Again" button
     return;
   }
 
@@ -4206,97 +4304,169 @@ async function handleTranscriptionComplete() {
 
     if (isEmptyTranscript) {
       // Show user-friendly "no speech detected" message
-      if (transcriptEmpty) {
-        transcriptEmpty.innerHTML = `
-          <div style="text-align: center; max-width: 400px; margin: 0 auto; padding: 2rem;">
-            <div style="font-size: 1.125rem; font-weight: 600; color: #18181b; margin-bottom: 0.75rem; letter-spacing: -0.01em;">No Speech Detected</div>
-            <div style="font-size: 0.9375rem; color: #71717a; line-height: 1.6; margin-bottom: 2rem;">
-              We recorded ${audioSizeMB} MB of audio, but couldn't detect any speech in it.
+      const container = document.createElement('div');
+      container.style.cssText = 'text-align: center; max-width: 400px; margin: 0 auto; padding: 2rem;';
+
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size: 1.125rem; font-weight: 600; color: #18181b; margin-bottom: 0.75rem; letter-spacing: -0.01em;';
+      header.textContent = 'No Speech Detected';
+
+      const subHeader = document.createElement('div');
+      subHeader.style.cssText = 'font-size: 0.9375rem; color: #71717a; line-height: 1.6; margin-bottom: 2rem;';
+      subHeader.textContent = `We recorded ${audioSizeMB} MB of audio, but couldn't detect any speech in it.`;
+
+      const checklist = document.createElement('div');
+      checklist.style.cssText = 'text-align: left; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;';
+
+      const title = document.createElement('div');
+      title.style.cssText = 'font-size: 0.8125rem; font-weight: 600; color: #18181b; margin-bottom: 1rem;';
+      title.textContent = 'This could be because:';
+      checklist.appendChild(title);
+
+      const reasons = [
+        ['The audio was music or sounds only', 'Transcription works best with clear speech', '#f59e0b'],
+        ['Audio quality was too low', 'Background noise or poor quality can affect detection', '#f59e0b'],
+        ['Speech was in another language', 'Currently optimized for English speech', '#f59e0b']
+      ];
+
+      reasons.forEach(([head, sub, color]) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display: flex; gap: 0.75rem; margin-bottom: 1rem;';
+        if (head === reasons[2][0]) item.style.marginBottom = '0';
+
+        item.innerHTML = `
+            <div style="width: 4px; height: 4px; background: ${color}; border-radius: 50%; margin-top: 0.5rem; flex-shrink: 0;"></div>
+            <div>
+              <div style="font-weight: 600; font-size: 0.875rem; color: #18181b; margin-bottom: 0.25rem;">${head}</div>
+              <div style="font-size: 0.8125rem; color: #71717a;">${sub}</div>
             </div>
-            <div style="text-align: left; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-              <div style="font-size: 0.8125rem; font-weight: 600; color: #18181b; margin-bottom: 1rem;">This could be because:</div>
-              <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
-                <div style="width: 4px; height: 4px; background: #f59e0b; border-radius: 50%; margin-top: 0.5rem; flex-shrink: 0;"></div>
-                <div>
-                  <div style="font-weight: 600; font-size: 0.875rem; color: #18181b; margin-bottom: 0.25rem;">The audio was music or sounds only</div>
-                  <div style="font-size: 0.8125rem; color: #71717a;">Transcription works best with clear speech</div>
-                </div>
-              </div>
-              <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
-                <div style="width: 4px; height: 4px; background: #f59e0b; border-radius: 50%; margin-top: 0.5rem; flex-shrink: 0;"></div>
-                <div>
-                  <div style="font-weight: 600; font-size: 0.875rem; color: #18181b; margin-bottom: 0.25rem;">Audio quality was too low</div>
-                  <div style="font-size: 0.8125rem; color: #71717a;">Background noise or poor quality can affect detection</div>
-                </div>
-              </div>
-              <div style="display: flex; gap: 0.75rem;">
-                <div style="width: 4px; height: 4px; background: #f59e0b; border-radius: 50%; margin-top: 0.5rem; flex-shrink: 0;"></div>
-                <div>
-                  <div style="font-weight: 600; font-size: 0.875rem; color: #18181b; margin-bottom: 0.25rem;">Speech was in another language</div>
-                  <div style="font-size: 0.8125rem; color: #71717a;">Currently optimized for English speech</div>
-                </div>
-              </div>
-            </div>
-            <div style="display: flex; gap: 0.75rem; justify-content: center;">
-              <button onclick="" data-action="hideTranscription" class="js-transcription-btn" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: white; color: #18181b; border: 2px solid #e4e4e7; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='#d4d4d8'; this.style.boxShadow='0 4px 8px rgba(0, 0, 0, 0.06)'" onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='#e4e4e7'; this.style.boxShadow='0 1px 2px rgba(0, 0, 0, 0.02)'">
-                Try Again
-              </button>
-              ${audioSizeMB > 0 ? `
-              <button onclick="" data-action="downloadAudio" class="js-transcription-btn" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(59, 130, 246, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(59, 130, 246, 0.3)'">
-                Download Audio
-              </button>
-              ` : ''}
-            </div>
-          </div>
-        `;
+          `;
+        checklist.appendChild(item);
+      });
+
+      const btnContainer = document.createElement('div');
+      btnContainer.style.cssText = 'display: flex; gap: 0.75rem; justify-content: center;';
+
+      const tryAgainBtn = document.createElement('button');
+      tryAgainBtn.className = 'js-transcription-btn';
+      tryAgainBtn.textContent = 'Try Again';
+      tryAgainBtn.style.cssText = 'display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: white; color: #18181b; border: 2px solid #e4e4e7; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
+
+      tryAgainBtn.onclick = () => {
+        const mainView = document.getElementById('mainView');
+        const transcriptionView = document.getElementById('transcriptionView');
+        if (mainView && transcriptionView) {
+          transcriptionView.style.display = 'none';
+          mainView.style.display = 'block';
+          audioChunks = [];
+        }
+      };
+
+      btnContainer.appendChild(tryAgainBtn);
+
+      if (audioSizeMB > 0) {
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'js-transcription-btn';
+        downloadBtn.textContent = 'Download Audio';
+        downloadBtn.style.cssText = 'display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
+        downloadBtn.onclick = downloadAudio;
+        btnContainer.appendChild(downloadBtn);
       }
+
+      container.appendChild(header);
+      container.appendChild(subHeader);
+      container.appendChild(checklist);
+      container.appendChild(btnContainer);
+
+      if (transcriptEmpty) {
+        transcriptEmpty.innerHTML = '';
+        transcriptEmpty.appendChild(container);
+      }
+      // Also update main display just in case
+      updateTranscriptDisplay(container);
+
     } else {
-      // Show generic error message for other types of errors
-      const errorMessage = `
-        <div style="text-align: center; max-width: 400px; margin: 0 auto; padding: 2rem;">
-          <div style="font-size: 1.125rem; font-weight: 600; color: #18181b; margin-bottom: 0.75rem; letter-spacing: -0.01em;">Transcription Failed</div>
-          <div style="font-size: 0.9375rem; color: #71717a; line-height: 1.6; margin-bottom: 2rem;">
-            ${transcriptionError.message}
-          </div>
-          <div style="text-align: left; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-            <div style="font-size: 0.8125rem; font-weight: 600; color: #18181b; margin-bottom: 0.75rem;">The Prompt API audio transcription is experimental</div>
-            <div style="font-size: 0.8125rem; color: #71717a; line-height: 1.6; margin-bottom: 1rem;">
-              Your audio was recorded (${audioSizeMB} MB). You can download it and use external transcription services:
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8125rem; color: #18181b;">
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div style="width: 4px; height: 4px; background: #3b82f6; border-radius: 50%;"></div>
-                <div><strong>OpenAI Whisper</strong> - Free, excellent quality</div>
-              </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div style="width: 4px; height: 4px; background: #3b82f6; border-radius: 50%;"></div>
-                <div><strong>Google Speech-to-Text</strong> - Accurate, multiple languages</div>
-              </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div style="width: 4px; height: 4px; background: #3b82f6; border-radius: 50%;"></div>
-                <div><strong>Otter.ai</strong> - Easy to use, good for meetings</div>
-              </div>
-            </div>
-          </div>
-          <div style="display: flex; gap: 0.75rem; justify-content: center;">
-            <button onclick="" data-action="hideTranscription" class="js-transcription-btn" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: white; color: #18181b; border: 2px solid #e4e4e7; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='#d4d4d8'; this.style.boxShadow='0 4px 8px rgba(0, 0, 0, 0.06)'" onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='#e4e4e7'; this.style.boxShadow='0 1px 2px rgba(0, 0, 0, 0.02)'">
-              Close
-            </button>
-            ${audioSizeMB > 0 ? `
-            <button onclick="" data-action="downloadAudio" class="js-transcription-btn" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #18181b 0%, #27272a 100%); color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(24, 24, 27, 0.2); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(24, 24, 27, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(24, 24, 27, 0.2)'">
-              Download Audio
-            </button>
-            ` : ''}
-        </div>
-      </div>
-    `;
+      // Show generic error message
+      const container = document.createElement('div');
+      container.style.cssText = 'text-align: center; max-width: 400px; margin: 0 auto; padding: 2rem;';
 
-      updateTranscriptDisplay(errorMessage);
-    }
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size: 1.125rem; font-weight: 600; color: #18181b; margin-bottom: 0.75rem; letter-spacing: -0.01em;';
+      header.textContent = 'Transcription Failed';
 
-    // Don't reset state yet - let user click buttons (Try Again / Download Audio)
-  }
-}
+      const subHeader = document.createElement('div');
+      subHeader.style.cssText = 'font-size: 0.9375rem; color: #71717a; line-height: 1.6; margin-bottom: 2rem;';
+      subHeader.textContent = transcriptionError.message;
+
+      const checklist = document.createElement('div');
+      checklist.style.cssText = 'text-align: left; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;';
+
+      const title = document.createElement('div');
+      title.style.cssText = 'font-size: 0.8125rem; font-weight: 600; color: #18181b; margin-bottom: 0.75rem;';
+      title.textContent = 'The Prompt API audio transcription is experimental';
+      checklist.appendChild(title);
+
+      const subTitle = document.createElement('div');
+      subTitle.style.cssText = 'font-size: 0.8125rem; color: #71717a; line-height: 1.6; margin-bottom: 1rem;';
+      subTitle.textContent = `Your audio was recorded (${audioSizeMB} MB). You can download it and use external transcription services:`;
+      checklist.appendChild(subTitle);
+
+      const services = document.createElement('div');
+      services.style.cssText = 'display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8125rem; color: #18181b;';
+
+      [
+        ['OpenAI Whisper', ' - Free, excellent quality'],
+        ['Google Speech-to-Text', ' - Accurate, multiple languages'],
+        ['Otter.ai', ' - Easy to use, good for meetings']
+      ].forEach(([name, desc]) => {
+        const srv = document.createElement('div');
+        srv.style.cssText = 'display: flex; align-items: center; gap: 0.5rem;';
+        srv.innerHTML = `
+             <div style="width: 4px; height: 4px; background: #3b82f6; border-radius: 50%;"></div>
+             <div><strong>${name}</strong>${desc}</div>
+          `;
+        services.appendChild(srv);
+      });
+      checklist.appendChild(services);
+
+      const btnContainer = document.createElement('div');
+      btnContainer.style.cssText = 'display: flex; gap: 0.75rem; justify-content: center;';
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'js-transcription-btn';
+      closeBtn.textContent = 'Close';
+      closeBtn.style.cssText = 'display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: white; color: #18181b; border: 2px solid #e4e4e7; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
+      closeBtn.onclick = () => {
+        const mainView = document.getElementById('mainView');
+        const transcriptionView = document.getElementById('transcriptionView');
+        if (mainView && transcriptionView) {
+          transcriptionView.style.display = 'none';
+          mainView.style.display = 'block';
+          audioChunks = [];
+        }
+      };
+      btnContainer.appendChild(closeBtn);
+
+      if (audioSizeMB > 0) {
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'js-transcription-btn';
+        downloadBtn.textContent = 'Download Audio';
+        downloadBtn.style.cssText = 'display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #18181b 0%, #27272a 100%); color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(24, 24, 27, 0.2); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);';
+        downloadBtn.onclick = downloadAudio;
+        btnContainer.appendChild(downloadBtn);
+      }
+
+      container.appendChild(header);
+      container.appendChild(subHeader);
+      container.appendChild(checklist);
+      container.appendChild(btnContainer);
+
+      updateTranscriptDisplay(container);
+    } // End of if-else
+  } // End of catch
+} // End of handleTranscriptionComplete
+
+
 
 /**
  * Save transcript
@@ -4537,8 +4707,10 @@ function updateTranscriptDisplay(transcript) {
     transcriptEmpty.style.display = 'none';
     transcriptText.style.display = 'block';
 
-    // Check if transcript contains HTML (for error messages)
-    if (transcript.includes('<div') || transcript.includes('<br>')) {
+    if (transcript instanceof HTMLElement) {
+      transcriptText.innerHTML = '';
+      transcriptText.appendChild(transcript);
+    } else if (typeof transcript === 'string' && (transcript.includes('<div') || transcript.includes('<br>'))) {
       transcriptText.innerHTML = transcript;
     } else {
       transcriptText.textContent = transcript;
@@ -4762,6 +4934,12 @@ async function handleActionPill(promptPrefix, actionType) {
       return;
     }
 
+    // Special handling for flashcards
+    if (actionType === 'flashcards') {
+      await generateAndDisplayFlashcards();
+      return;
+    }
+
     // Show loading state
     const summaryText = document.getElementById('summaryText');
     if (summaryText) {
@@ -4799,13 +4977,15 @@ async function handleActionPill(promptPrefix, actionType) {
     }
 
   } catch (error) {
-    console.error(`Failed to generate ${actionType}:`, error);
+    console.error('Action failed:', error);
     const summaryText = document.getElementById('summaryText');
     if (summaryText) {
-      summaryText.textContent = `Failed to generate ${actionType}. Please try again.`;
+      summaryText.textContent = 'Failed to process request. Please try again.';
     }
   }
 }
+
+
 
 /**
  * Reset transcription state
@@ -5003,3 +5183,336 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }, 300); // Shorter delay since this is a direct notification
   }
 });
+
+
+
+/* ============================================
+   Flashcard Feature Logic
+   ============================================ */
+
+/**
+ * Generate and Display Flashcards
+ */
+async function generateAndDisplayFlashcards() {
+  const summaryText = document.getElementById('summaryText');
+  const transcriptSummary = document.getElementById('transcriptSummary');
+
+  if (transcriptSummary) transcriptSummary.style.display = 'block';
+  if (summaryText) {
+    summaryText.innerHTML = '<div class="chat-loading"><div class="chat-loading-dot"></div><div class="chat-loading-dot"></div><div class="chat-loading-dot"></div><p style="text-align:center; margin-top:10px; color:var(--text-tertiary);">Generating flashcards...</p></div>';
+  }
+
+  try {
+    const prompt = `Based on the transcript, generate exactly 10 study flashcards.
+Return ONLY a valid JSON array of objects.
+Each object must have exactly two keys: "question" and "answer".
+Do not include any markdown formatting, code blocks, or introductory text.
+Example format: [{"question": "Q1", "answer": "A1"}, {"question": "Q2", "answer": "A2"}]
+
+Transcript:
+${currentTranscript}`;
+
+    const session = await window.LanguageModel.create({
+      expectedOutputs: [{ type: 'text', languages: ['en'] }]
+    });
+
+    const result = await session.prompt(prompt);
+    session.destroy();
+
+    // Clean up the result to ensure it's valid JSON
+    let jsonStr = result.trim();
+
+    // Find JSON array bounds
+    const firstBracket = jsonStr.indexOf('[');
+    const lastBracket = jsonStr.lastIndexOf(']');
+    if (firstBracket !== -1 && lastBracket !== -1) {
+      jsonStr = jsonStr.substring(firstBracket, lastBracket + 1);
+    }
+
+    let cards = [];
+    try {
+      cards = JSON.parse(jsonStr);
+    } catch (e) {
+      console.error('Failed to parse JSON:', e);
+      throw new Error('Failed to generate valid flashcards format.');
+    }
+
+    if (!Array.isArray(cards) || cards.length === 0) {
+      throw new Error('No flashcards generated.');
+    }
+
+    // Render cards
+    renderFlashcardStack(cards);
+
+  } catch (error) {
+    console.error('Flashcard generation error:', error);
+    if (summaryText) {
+      summaryText.innerHTML = '';
+
+      const errorDiv = document.createElement('div');
+      errorDiv.style.cssText = 'padding: 20px; text-align: center; color: var(--error);';
+
+      const errorPara = document.createElement('p');
+      errorPara.textContent = 'Failed to generate flashcards.';
+
+      const errorDetail = document.createElement('p');
+      errorDetail.style.cssText = 'font-size: 0.8em; margin-top: 5px;';
+      errorDetail.textContent = error.message;
+
+      const tryAgainBtn = document.createElement('button');
+      tryAgainBtn.className = 'btn-secondary';
+      tryAgainBtn.style.marginTop = '10px';
+      tryAgainBtn.textContent = 'Try Again';
+      tryAgainBtn.onclick = () => handleActionPill('Generate flashcards', 'flashcards');
+
+      errorDiv.appendChild(errorPara);
+      errorDiv.appendChild(errorDetail);
+      errorDiv.appendChild(tryAgainBtn);
+
+      summaryText.appendChild(errorDiv);
+    }
+  }
+}
+
+/**
+ * Render Flashcard Stack
+ */
+function renderFlashcardStack(cards) {
+  const summaryText = document.getElementById('summaryText');
+  if (!summaryText) return;
+
+  summaryText.innerHTML = ''; // Clear loading state
+
+  const container = document.createElement('div');
+  container.className = 'flashcard-container';
+
+  const stack = document.createElement('div');
+  stack.className = 'flashcard-stack';
+  stack.dataset.isDragging = 'false';
+
+  // Create cards
+  cards.forEach((card, index) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'flashcard';
+    cardEl.style.zIndex = cards.length - index;
+
+    // Initial stack visuals
+    if (index === 0) {
+      cardEl.style.transform = 'scale(1) translateY(0px)';
+      cardEl.style.opacity = '1';
+    } else if (index === 1) {
+      cardEl.style.transform = 'scale(0.95) translateY(10px)';
+      cardEl.style.opacity = '0.9';
+    } else if (index === 2) {
+      cardEl.style.transform = 'scale(0.90) translateY(20px)';
+      cardEl.style.opacity = '0.8';
+    } else {
+      cardEl.style.transform = 'scale(0.85) translateY(30px)';
+      cardEl.style.opacity = '0';
+    }
+
+    cardEl.innerHTML = `
+            <div class="flashcard-inner">
+                <div class="flashcard-front">
+                    <div class="flashcard-header">
+                        <div class="flashcard-number">${index + 1} / ${cards.length}</div>
+                    </div>
+                    <div class="flashcard-content">
+                        <div class="flashcard-icon-container">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="flashcard-icon">
+                                <path d="M9.663 17h4.673M12 3v1m6.364 1.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="flashcard-question">${card.question}</div>
+                    </div>
+                    <div class="flashcard-footer">
+                        <div class="flashcard-hint">
+                            <span>Click to Reveal</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 9l6 6-6 6"/><path d="M4 4v7a4 4 0 0 0 4 4h11"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="flashcard-back">
+                    <div class="flashcard-header">
+                        <div class="flashcard-number text-white-50">${index + 1} / ${cards.length}</div>
+                    </div>
+                    <div class="flashcard-content">
+                        <div class="flashcard-answer-label">Answer</div>
+                        <div class="flashcard-answer">${card.answer}</div>
+                    </div>
+                    <div class="flashcard-footer">
+                        <div class="flashcard-hint text-white-75">Swipe for next card</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+    // Click to flip
+    cardEl.addEventListener('click', (e) => {
+      if (stack.dataset.isDragging === 'true') return;
+      // Only flip the top visible card
+      if (!cardEl.classList.contains('swiped') &&
+        Array.from(stack.querySelectorAll('.flashcard:not(.swiped)'))[0] === cardEl) {
+        cardEl.classList.toggle('flipped');
+      }
+    });
+
+    stack.appendChild(cardEl);
+  });
+
+  container.appendChild(stack);
+  summaryText.appendChild(container);
+
+  // Initialize Swipe Logic
+  initSwipeLogic(stack);
+}
+
+function initSwipeLogic(stack) {
+  let startX = 0;
+  let currentX = 0;
+  let currentCard = null;
+
+  const getTopCard = () => {
+    // Since we cycle cards by moving them to the end of the DOM,
+    // the top card is always the first child.
+    return stack.firstElementChild;
+  };
+
+  const updateStack = () => {
+    const cards = Array.from(stack.querySelectorAll('.flashcard'));
+    cards.forEach((card, index) => {
+      card.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
+      card.style.zIndex = cards.length - index;
+
+      if (index === 0) {
+        card.style.transform = 'scale(1) translateY(0px)';
+        card.style.opacity = '1';
+        card.style.pointerEvents = 'auto';
+      } else if (index === 1) {
+        card.style.transform = 'scale(0.95) translateY(10px)';
+        card.style.opacity = '0.9';
+        card.style.pointerEvents = 'none';
+      } else if (index === 2) {
+        card.style.transform = 'scale(0.90) translateY(20px)';
+        card.style.opacity = '0.8';
+        card.style.pointerEvents = 'none';
+      } else {
+        card.style.transform = 'scale(0.85) translateY(30px)';
+        card.style.opacity = '0';
+        card.style.pointerEvents = 'none';
+      }
+    });
+  };
+
+  stack.addEventListener('mousedown', startDrag);
+  stack.addEventListener('touchstart', startDrag, { passive: true });
+
+  document.addEventListener('mousemove', drag);
+  document.addEventListener('touchmove', drag, { passive: false });
+
+  document.addEventListener('mouseup', endDrag);
+  document.addEventListener('touchend', endDrag);
+
+  function startDrag(e) {
+    const topCard = getTopCard();
+    if (!topCard) return;
+
+    // Only allow dragging top card
+    if (!e.target.closest('.flashcard') || e.target.closest('.flashcard') !== topCard) return;
+
+    stack.dataset.isDragging = 'false';
+    currentCard = topCard;
+    startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    currentX = startX;
+
+    currentCard.style.transition = 'none';
+  }
+
+  function drag(e) {
+    if (!currentCard) return;
+
+    const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const deltaX = x - startX;
+
+    if (Math.abs(deltaX) > 5) stack.dataset.isDragging = 'true';
+
+    currentX = x;
+
+    // Rotate and translate
+    const rotation = deltaX * 0.1;
+    currentCard.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`;
+
+    // Prevent scrolling on touch if we are dragging horizontally
+    if (Math.abs(deltaX) > 10 && e.type === 'touchmove') e.preventDefault();
+  }
+
+  function endDrag(e) {
+    if (!currentCard) return;
+
+    const deltaX = currentX - startX;
+    const threshold = 100;
+
+    currentCard.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
+
+    if (Math.abs(deltaX) > threshold) {
+      // Swiped
+      const direction = deltaX > 0 ? 1 : -1;
+      const endX = window.innerWidth * direction;
+
+      // Trigger exit animation
+      currentCard.style.transform = `translateX(${endX}px) rotate(${direction * 30}deg)`;
+      currentCard.style.opacity = '0';
+
+      // Cycle card after animation
+      setTimeout((card) => {
+        // Reset properties
+        card.classList.remove('flipped');
+        card.style.transform = '';
+        card.style.opacity = '0'; // Hidden until updateStack runs
+
+        // Move to bottom of stack (end of sequence)
+        stack.appendChild(card);
+
+        // Update positions for all cards
+        updateStack();
+
+      }, 500, currentCard);
+
+      // Note: We don't call updateStack() immediately here because the top card 
+      // is still animating out. We wait for it to move to bottom.
+      // But we should probably animate the others UP while this one flies out?
+      // If we do that, we need to treat the current top card as "removed" from the list temporarily.
+      // For simplicity, we wait for animation to finish to re-shuffle. 
+      // If we want instant feedback for others moving up:
+      const others = Array.from(stack.querySelectorAll('.flashcard')).slice(1);
+      others.forEach((c, i) => {
+        // i=0 is the NEXT card (index 1 of original stack)
+        // It should move to index 0 position.
+        c.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
+        if (i === 0) {
+          c.style.transform = 'scale(1) translateY(0px)';
+          c.style.opacity = '1';
+        } else if (i === 1) {
+          c.style.transform = 'scale(0.95) translateY(10px)';
+          c.style.opacity = '0.9';
+        } else { // i >= 2
+          // ...
+        }
+        // This is basically "peek ahead" logic.
+        // Let's stick to simple "wait and shuffle" to avoid glitching 
+        // if users swipe fast, or implement a proper queue.
+        // Given the complexity constraint, wait-and-shuffle is safer.
+      });
+
+    } else {
+      // Revert
+      currentCard.style.transform = 'scale(1) translateY(0px)';
+      currentCard.style.opacity = '1';
+    }
+
+    currentCard = null;
+    setTimeout(() => stack.dataset.isDragging = 'false', 100);
+  }
+}

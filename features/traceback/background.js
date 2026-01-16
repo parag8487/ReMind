@@ -452,7 +452,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
     // Set default settings
     await chrome.storage.sync.set({
-      captureInterval: CAPTURE_INTERVAL_MS,
+      // captureInterval removed: user must set it in TraceBack app
       retentionDays: RETENTION_DAYS,
       enabled: true
     });

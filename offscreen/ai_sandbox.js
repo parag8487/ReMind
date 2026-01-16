@@ -1,11 +1,21 @@
 // AI Sandbox Worker
 // Runs in a sandboxed iframe to allow remote CDN scripts (Transformers.js)
 
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+import { pipeline, env } from '../features/traceback/lib/transformers.js';
 
 // Configuration
 env.allowLocalModels = false;
 env.useBrowserCache = true;
+// Point to local WASM file (Non-SIMD version) using absolute path
+env.backends.onnx.wasm.wasmPaths = {
+    'ort-wasm.wasm': chrome.runtime.getURL('features/traceback/lib/ort-wasm.wasm'),
+    'ort-wasm-threaded.wasm': chrome.runtime.getURL('features/traceback/lib/ort-wasm.wasm'), // FORCE single-threaded
+    'ort-wasm-simd.wasm': chrome.runtime.getURL('features/traceback/lib/ort-wasm.wasm'), // FORCE non-SIMD
+    'ort-wasm-simd-threaded.wasm': chrome.runtime.getURL('features/traceback/lib/ort-wasm.wasm'), // FORCE single-threaded non-SIMD
+};
+env.backends.onnx.wasm.simd = false; // Using non-SIMD file
+env.backends.onnx.wasm.numThreads = 1; // Force single thread to avoid SharedArrayBuffer issues
+env.useBrowserCache = false; // Disable cache to work without allow-same-origin
 
 // Global State
 let extractor = null;
@@ -22,11 +32,27 @@ async function loadModel() {
 
     try {
         isModelLoading = true;
-        // console.log('Sandbox: Loading Feature Extraction Pipeline...');
-        extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-        // console.log('Sandbox: Model Loaded');
+        console.log('Sandbox: Loading Feature Extraction Pipeline...');
+
+        // Configure the pipeline with local model files if available
+        extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+            // Use local files if available, otherwise fallback to CDN
+            cacheDir: 'models',
+            // Force local inference
+            local_files_only: false,
+        });
+
+        console.log('Sandbox: Model Loaded Successfully');
     } catch (e) {
-        console.error('Sandbox: Model Load Failed', e);
+        const errorMsg = `Sandbox: Model Load Failed. ${e.message || e}`;
+        console.error(errorMsg, e);
+        // Post global error back to offscreen/background
+        try {
+            window.parent.postMessage({
+                action: 'log_error',
+                error: errorMsg
+            }, '*');
+        } catch (err) { console.error('Failed to post error', err); }
     } finally {
         isModelLoading = false;
     }
@@ -35,18 +61,53 @@ async function loadModel() {
 // --- CORE FUNCTIONS ---
 
 async function generateEmbedding(text) {
-    if (!text || !text.trim()) return null;
-    await loadModel();
-    if (!extractor) return null;
+    if (!text || !text.trim()) {
+        console.warn('Sandbox: Empty text provided for embedding');
+        return null;
+    }
 
-    const output = await extractor(text, { pooling: 'mean', normalize: true });
-    return Array.from(output.data);
+    await loadModel();
+    if (!extractor) {
+        console.error('Sandbox: Extractor not available for embedding');
+        return null;
+    }
+
+    try {
+        const output = await extractor(text, { pooling: 'mean', normalize: true });
+        const embedding = Array.from(output.data);
+
+        // Verify the embedding is the expected size (should be 384 for all-MiniLM-L6-v2)
+        if (embedding && embedding.length !== 384) {
+            console.warn(`Sandbox: Unexpected embedding length: ${embedding.length}, expected 384`);
+        }
+
+        console.log(`Sandbox: Generated embedding with ${embedding ? embedding.length : 0} dimensions`);
+        return embedding;
+    } catch (error) {
+        console.error('Sandbox: Error generating embedding:', error);
+        return null;
+    }
 }
 
 // --- MESSAGE LISTENER ---
 
 window.addEventListener('message', async (event) => {
-    // Verify origin if possible, but sandbox is unique origin
+    // Security: Verify the message is from our extension (parent frame)
+    // Since this runs in an iframe from the same extension, origins should match
+    // Enhanced security check for messages
+    // Verify the message is from our extension
+    if (event.source !== window.parent) {
+        console.warn('Security Warning: Message received from unexpected source:', event.source);
+        return;
+    }
+
+    // Additional validation: check that the message is from our extension origin
+    const extensionOrigin = chrome.runtime.id ? `chrome-extension://${chrome.runtime.id}` : null;
+    if (extensionOrigin && !event.origin.startsWith(extensionOrigin)) {
+        console.warn('Security Warning: Message origin mismatch:', event.origin, extensionOrigin);
+        return;
+    }
+
     const request = event.data;
 
     if (!request || !request.action) return;

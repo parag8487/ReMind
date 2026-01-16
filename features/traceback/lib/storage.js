@@ -488,6 +488,30 @@ class StorageManager {
       request.onerror = () => reject(request.error);
     });
   }
+  /**
+   * Get the most recent capture
+   * @returns {Promise<Object>} The last capture or null
+   */
+  async getLastCapture() {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([STORE_NAME], 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const index = store.index('timestamp');
+
+      const request = index.openCursor(null, 'prev'); // 'prev' direction for descending order
+
+      request.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          resolve(cursor.value);
+        } else {
+          resolve(null);
+        }
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 // Export for use in other modules

@@ -1425,7 +1425,10 @@ function extractColorFromFavicon(faviconUrl, callback) {
     }
   };
 
+  img.crossOrigin = "Anonymous"; // Try to avoid CORS issues
+
   img.onerror = function () {
+    // console.warn('Favicon load failed:', faviconUrl); // Suppress log to reduce noise
     callback('#3b82f6'); // Default blue on error
   };
 
@@ -1445,7 +1448,13 @@ function createTimelineGroup(group) {
 
   // Use real favicon
   const domain = group.domain;
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+  let faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+
+  // Prevent 404s for local domains
+  const isLocal = domain === 'localhost' || domain === '127.0.0.1' || domain.startsWith('192.168.') || domain.endsWith('.local');
+  if (isLocal) {
+    faviconUrl = ''; // Will trigger default icon logic
+  }
 
   // Override icon for transcript groups
   if (domain === 'Transcripts') {
@@ -1454,12 +1463,18 @@ function createTimelineGroup(group) {
     // Set transcript color
     container.style.setProperty('--group-color', '#3b82f6');
   } else {
-    icon.innerHTML = `<img src="${faviconUrl}" alt="${domain}" onerror="this.style.display='none'; this.parentElement.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'10\\'/><line x1=\\'2\\' y1=\\'12\\' x2=\\'22\\' y2=\\'12\\'/><path d=\\'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\\'/></svg>';" style="width: 16px; height: 16px; border-radius: 2px;">`;
+    // If local or no favicon, use default icon immediately
+    if (!faviconUrl) {
+      icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="#3b82f6" stroke-width="2"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#3b82f6" stroke-width="2"/></svg>`;
+      container.style.setProperty('--group-color', '#3b82f6');
+    } else {
+      icon.innerHTML = `<img src="${faviconUrl}" alt="${domain}" onerror="this.style.display='none'; this.parentElement.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'10\\'/><line x1=\\'2\\' y1=\\'12\\' x2=\\'22\\' y2=\\'12\\'/><path d=\\'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\\'/></svg>';" style="width: 16px; height: 16px; border-radius: 2px;">`;
 
-    // Extract color from favicon
-    extractColorFromFavicon(faviconUrl, (color) => {
-      container.style.setProperty('--group-color', color);
-    });
+      // Extract color from favicon
+      extractColorFromFavicon(faviconUrl, (color) => {
+        container.style.setProperty('--group-color', color);
+      });
+    }
   }
 
   container.appendChild(icon);

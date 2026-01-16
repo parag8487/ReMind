@@ -75,7 +75,7 @@ export class SemanticSearch {
       // --- A. Semantic Vector Score ---
       if (queryVector && capture.embedding) {
         vectorScore = this.cosineSimilarity(queryVector, capture.embedding);
-        if (vectorScore > 0.25) { // Threshold for relevance
+        if (vectorScore > 0.1) { // Lower threshold for broader conceptual matches (lion -> animal, cat -> pet, etc.)
           score += vectorScore * 200; // Boosted score (0-200)
           matchType = 'semantic';
         }
@@ -104,7 +104,7 @@ export class SemanticSearch {
       const recencyBoost = Math.max(0, 10 - (ageHours / 24)); // Up to +10 points for new stuff
       score += recencyBoost;
 
-      if (score > 15) { // Minimum score to show
+      if (score > 5) { // Lower minimum score to show more results, especially for semantic matches
         results.push({
           ...capture,
           searchScore: score,

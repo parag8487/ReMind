@@ -93,4 +93,13 @@ window.addEventListener('message', (event) => {
             pendingRequests.delete(data.reqId);
         }
     }
+
+    if (data.action === 'log_error') {
+        console.error('Offscreen received log_error:', data.error);
+        chrome.runtime.sendMessage({
+            action: 'log_error',
+            source: 'offscreen_sandbox',
+            error: data.error
+        });
+    }
 });

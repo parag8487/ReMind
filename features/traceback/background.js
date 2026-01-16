@@ -124,8 +124,9 @@ function startAutomaticCapture(interval) {
 
 /**
  * Capture the current active tab
+ * @param {boolean} force - Force capture (bypass content check)
  */
-async function captureCurrentTab() {
+async function captureCurrentTab(force = false) {
   try {
     // Get active tab
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -151,9 +152,14 @@ async function captureCurrentTab() {
       return;
     }
 
-    // Check if content has changed (skip duplicate screenshots to save processing)
-    if (!captureManager.hasContentChanged(screenshot)) {
-      console.log('TraceBack: Content unchanged, skipping capture');
+    // Check if content has changed (skip duplicate screenshots)
+    // Strict Base64 comparison against the LATEST stored capture (persistent check)
+    // Check if content has changed (skip duplicate screenshots)
+    // Strict Base64 comparison against the LATEST stored capture (persistent check)
+    // User requested this check even for manual 'Capture Now' clicks
+    const lastCapture = await storageManager.getLastCapture();
+    if (lastCapture && lastCapture.screenshot === screenshot) {
+      console.log('TraceBack: the capture is identical to the previous, skipping capture');
       return;
     }
 
@@ -232,6 +238,18 @@ async function buildSemanticIndex() {
       return;
     }
 
+    // Check for captures that need processing (backfill)
+    const unprocessedCaptures = allCaptures.filter(c => !c.processed && !c.embedding);
+    if (unprocessedCaptures.length > 0) {
+      console.log(`TraceBack: Found ${unprocessedCaptures.length} unprocessed captures. Starting backfill...`);
+      // Process in batches to avoid overwhelming the offscreen document
+      for (const capture of unprocessedCaptures) {
+        await processWithAI(capture);
+        // Small delay between requests
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
     await semanticSearch.buildIndex(allCaptures);
     isIndexBuilt = true;
     console.log(`TraceBack: Semantic index built with ${allCaptures.length} documents`);
@@ -269,6 +287,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       const { id, embedding } = request.result;
       console.log(`TraceBack: AI Analysis Complete for ID ${id}`);
+
+      if (!embedding || embedding.length === 0) {
+        console.error(`TraceBack: ERROR - No embedding received for ID ${id}!`);
+      } else {
+        console.log(`TraceBack: Received embedding for ID ${id}, Vector Length: ${embedding.length}`);
+      }
 
       try {
         const capture = await storageManager.getById(id);
@@ -335,6 +359,20 @@ async function performCleanup(retentionDays) {
  * Handle messages from popup/content scripts
  */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  const handledActions = [
+    'search',
+    'getStats',
+    'deleteAll',
+    'startTabCapture',
+    'captureNow',
+    'getCapture',
+    'proxy_ai_request'
+  ];
+
+  if (!handledActions.includes(request.action)) {
+    return false; // Let other listeners handle it
+  }
+
   // Execute all logic after initialization ensures storage/index are ready
   (async () => {
     try {
@@ -401,7 +439,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       if (request.action === 'captureNow') {
-        captureCurrentTab().then(() => {
+        captureCurrentTab(true).then(() => {
           sendResponse({ success: true });
         }).catch(error => {
           sendResponse({ error: error.message });
@@ -434,13 +472,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         return;
       }
+
+      if (request.action === 'log_error') {
+        console.error(`[${request.source}] ERROR:`, request.error);
+        return;
+      }
     } catch (err) {
       console.error('Error handling message:', err);
       sendResponse({ error: 'Background initialization failed' });
     }
   })();
 
-  return true; // Keep message channel open
+  return true; // Keep message channel open for handled actions
 });
 
 /**

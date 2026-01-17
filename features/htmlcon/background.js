@@ -57,3 +57,4 @@ async function handleCapture(rect) {
         console.error('Capture failed:', err);
     }
 }
+

@@ -88,6 +88,15 @@ ReMind uses a distributed architecture to keep the browser fast while running he
     2.  **Restructure**: Sends raw text to the **Language Model**.
     3.  **Generate**: The AI serves as a "Frontend Developer", writing semantic HTML (`<section>`, `<h2>`, `<table>`) to structure the raw data.
 
+### V. ZenPet (The "Gamified Focus Companion")
+*   **Goal**: Provide emotional support and micro-incentives for productivity.
+*   **Normal Chrome**: No native virtual pet or gamification features.
+*   **ReMind Architecture**:
+    1.  **Overlay**: Injects a **floating action bubble** (`overlay.js`) that persists across navigation.
+    2.  **AI Assistant**: Connects to the **Prompt API** (Gemini Nano) to perform in-page actions (Summarize, Rewrite).
+    3.  **Economy**: Manages a **local coin system** stored in `chrome.storage.local`.
+    4.  **Simulation**: Calculates pet hunger/happiness decay in the background to encourage regular check-ins.
+
 ---
 
 ## 4. Normal Chrome vs. ReMind (Detailed Comparison)
@@ -98,7 +107,8 @@ ReMind uses a distributed architecture to keep the browser fast while running he
 | **History** | SQLite Database (Disk) | **Vector Index** (IndexedDB + RAM) | +1.5MB Storage |
 | **Image Viewing** | Raster Display | **OCR Layer** (Tesseract WASM) | High (Only during conversion) |
 | **Tab Management** | Passive | **Active Monitoring** (Drift Detect) | Negligible |
-| **AI Processing** | Server-Side (Cloud) | **Client-Side (Local WASM)** | +150MB RAM (Shared) |
+| **Engagement** | None | **Virtual Buddy** (ZenPet + Coins) | Low |
+| **AI Processing** | Server-Side (Cloud) | **Client-Side (Local Nano AI)** | +150MB RAM (Shared) |
 
 ---
 
@@ -109,3 +119,5 @@ This architecture is designed to run on standard consumer hardware.
 *   **RAM**: 8GB Minimum (Allocates ~200MB for AI Model + Workers).
 *   **GPU**: Not Required (CPU Fallback enabled via WASM).
 *   **Storage**: ~50MB disk space (Model Cache + Vector DB).
+
+

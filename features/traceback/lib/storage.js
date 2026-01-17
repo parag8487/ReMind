@@ -516,3 +516,4 @@ class StorageManager {
 
 // Export for use in other modules
 export default StorageManager;
+

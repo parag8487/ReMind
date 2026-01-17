@@ -168,7 +168,19 @@ cosineSimilarity(vecA, vecB) {
 
 ---
 
-## 8. Data Schema & Storage Costs (IndexedDB)
+## 8. ZenPet Persistence (chrome.storage.local)
+ZenPet uses the `chrome.storage.local` API for high-frequency state updates like coin balances, pet health, and pomodoro timers.
+
+| Key | Schema | Purpose | Persistence |
+| :--- | :--- | :--- | :--- |
+| **`zenpet_user`** | `{ coins, ownedRooms }` | User economy & unlocks | Permanent |
+| **`zenpet_pet`** | `{ state, name, happiness, hunger, lastFed, lastPetted, experience, room, lastUpdated }` | Virtual Pet health & evolution | Permanent |
+| **`zenpet_pomodoro`** | `{ state, focusDuration, breakDuration, timeRemaining, isRunning }` | Active focus session state | Session-persistent |
+| **`zenpet_tasks`** | `Array<{ id, title, completed, createdAt }>` | User Todo list | Permanent |
+
+---
+
+## 9. Data Schema & Storage Costs (IndexedDB)
 
 What exactly are we saving? Here is the breakdown of a single "Memory" entry.
 
@@ -191,3 +203,5 @@ What exactly are we saving? Here is the breakdown of a single "Memory" entry.
 *   **100,000 Pages**: ~400 MB
 
 *Note: Browsers typically allow 50-80% of disk space for IndexedDB, so you can store millions of pages without hitting limits.*
+
+

@@ -125,3 +125,4 @@
         // Notify popup (if open) or background
     }
 })();
+

@@ -5531,3 +5531,4 @@ function initSwipeLogic(stack) {
     setTimeout(() => stack.dataset.isDragging = 'false', 100);
   }
 }
+

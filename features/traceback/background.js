@@ -525,3 +525,4 @@ chrome.tabs.onActivated.addListener(() => {
 
 // Initialize on startup
 initPromise = initialize();
+

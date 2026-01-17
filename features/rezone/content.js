@@ -261,22 +261,34 @@ class ReZone {
         }
     }
 
+    isContextValid() {
+        return typeof chrome !== 'undefined' && chrome.runtime && !!chrome.runtime.id;
+    }
+
     logDrift(duration) {
+        if (!this.isContextValid()) return;
+
         // Save locally for Weeky Insight
-        chrome.storage.local.get(['rezone_drifts'], (result) => {
-            const drifts = result.rezone_drifts || [];
-            drifts.push({
-                timestamp: Date.now(),
-                duration: duration,
-                url: window.location.href,
-                tone: this.tone
+        try {
+            chrome.storage.local.get(['rezone_drifts'], (result) => {
+                if (chrome.runtime.lastError) return; // Handle generic storage errors
+                const drifts = result.rezone_drifts || [];
+                drifts.push({
+                    timestamp: Date.now(),
+                    duration: duration,
+                    url: window.location.href,
+                    tone: this.tone
+                });
+                chrome.storage.local.set({ rezone_drifts: drifts });
+                console.log("[ReZone] Drift Logged to History.");
             });
-            chrome.storage.local.set({ rezone_drifts: drifts });
-            console.log("[ReZone] Drift Logged to History.");
-        });
+        } catch (e) {
+            console.warn("[ReZone] Context invalid during logDrift, ignoring.");
+        }
     }
 
     getPageContent() {
+        // ... (unchanged)
         // Gather key signals
         const title = document.title;
         const metaDesc = document.querySelector('meta[name="description"]')?.content || '';
@@ -323,6 +335,18 @@ class ReZone {
     }
 
     async showReEntryCard(driftDuration) {
+        if (!this.isContextValid()) return;
+
+        // Double check pause state from storage to be absolutely sure
+        // This handles cases where the in-memory 'isPaused' might be stale due to context issues
+        try {
+            const stored = await chrome.storage.local.get('rezone_paused');
+            if (stored.rezone_paused) {
+                this.isPaused = true;
+                return;
+            }
+        } catch (e) { return; } // Abort if storage read fails
+
         // Remove existing if any
         const existing = document.getElementById('rezone-container');
         if (existing) existing.remove();
@@ -412,7 +436,9 @@ class ReZone {
             opt.addEventListener('click', async (e) => {
                 const newTone = e.target.getAttribute('data-tone');
                 this.tone = newTone;
-                chrome.storage.local.set({ rezone_tone: newTone });
+                if (this.isContextValid()) {
+                    chrome.storage.local.set({ rezone_tone: newTone });
+                }
 
                 // Update UI classes
                 toneOptions.forEach(t => t.classList.remove('active'));
@@ -471,6 +497,7 @@ class ReZone {
     }
 
     logHistory() {
+        if (!this.isContextValid()) return;
         chrome.storage.local.get('rezone_history', (result) => {
             const history = result.rezone_history || [];
             history.push({
@@ -497,12 +524,21 @@ class ReZone {
     async checkDistraction() {
         if (!this.goal || this.isPaused) return;
 
+        // Final Double Check before alert
+        if (!this.isContextValid()) return;
+        try {
+            const stored = await chrome.storage.local.get('rezone_paused');
+            if (stored.rezone_paused) {
+                this.isPaused = true;
+                return;
+            }
+        } catch (e) { return; }
+
         // Check relevance
         const relevance = await this.analyzePageRelevance();
         console.log(`[ReZone] Distraction Check: ${relevance}`);
 
         if (relevance === "DISTRACTION") {
-            // Show distraction alert!!
             this.showDistractionAlert();
         }
     }
@@ -533,7 +569,7 @@ class ReZone {
 
                 // SAVE RELEVANT CONTEXT
                 if (clean.includes("RELEVANT")) {
-                    chrome.storage.local.set({ rezone_last_relevant_url: window.location.href });
+                    if (this.isContextValid()) chrome.storage.local.set({ rezone_last_relevant_url: window.location.href });
                     return "RELEVANT";
                 }
                 return "DISTRACTION";
@@ -544,7 +580,7 @@ class ReZone {
                 const isrelevant = topicWords.some(w => text.includes(w));
 
                 if (isrelevant) {
-                    chrome.storage.local.set({ rezone_last_relevant_url: window.location.href });
+                    if (this.isContextValid()) chrome.storage.local.set({ rezone_last_relevant_url: window.location.href });
                     return "RELEVANT";
                 }
                 return "DISTRACTION";
@@ -610,12 +646,16 @@ class ReZone {
         document.getElementById('rz-leave').onclick = async () => {
             overlay.remove();
             // Redirect to last known relevant page
-            const data = await chrome.storage.local.get('rezone_last_relevant_url');
-            if (data.rezone_last_relevant_url) {
-                console.log(`[ReZone] Redirecting to RELEVANT url: ${data.rezone_last_relevant_url}`);
-                window.location.href = data.rezone_last_relevant_url;
+            if (this.isContextValid()) {
+                const data = await chrome.storage.local.get('rezone_last_relevant_url');
+                if (data.rezone_last_relevant_url) {
+                    console.log(`[ReZone] Redirecting to RELEVANT url: ${data.rezone_last_relevant_url}`);
+                    window.location.href = data.rezone_last_relevant_url;
+                } else {
+                    console.log(`[ReZone] No saved relevant URL. Using history.back()`);
+                    history.back();
+                }
             } else {
-                console.log(`[ReZone] No saved relevant URL. Using history.back()`);
                 history.back();
             }
         };
@@ -631,3 +671,4 @@ class ReZone {
 // Initialize
 const rz = new ReZone();
 window.reZoneLoaded = true;
+

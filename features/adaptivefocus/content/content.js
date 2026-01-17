@@ -1780,3 +1780,4 @@ chrome.storage.sync.get(['autoAdapt', 'profile', 'dyslexiaLevel', 'adhdSummaryLe
     }, 1000);
   }
 });
+

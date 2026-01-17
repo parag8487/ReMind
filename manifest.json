@@ -57,6 +57,15 @@
         "features/rezone/styles.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "features/zenpet/content/assistant.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "action": {
@@ -90,6 +99,10 @@
         "features/traceback/lib/*",
         "features/adaptivefocus/popup/*",
         "features/adaptivefocus/assets/*",
+        "features/zenpet/popup/*",
+        "features/zenpet/assets/*",
+        "features/zenpet/content/*",
+        "features/zenpet/injected/*",
         "features/htmlcon/lib/*",
         "features/htmlcon/popup/*",
         "assets/*",

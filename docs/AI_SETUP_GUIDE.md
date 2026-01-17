@@ -40,7 +40,12 @@ chrome://settings/help
 3. Select: **Enabled**
 4. **Don't restart yet!**
 
-### B. Enable Optimization Guide Flag
+### B. Enable Specialized APIs
+1. **Summarization**: `chrome://flags/#summarization-api-for-gemini-nano` -> **Enabled**
+2. **Rewriter**: `chrome://flags/#rewriter-api-for-gemini-nano` -> **Enabled**
+3. **Proofreader**: `chrome://flags/#proofreader-api` -> **Enabled**
+
+### C. Enable Optimization Guide Flag
 
 1. Go to: `chrome://flags/#optimization-guide-on-device-model`
 2. Select: **Enabled BypassPerfRequirement**
@@ -51,10 +56,13 @@ chrome://settings/help
 2. Look for: **"Optimization Guide On Device Model"**
 3. If found, click **"Check for update"**. Status should eventually show "Up-to-date" with a version number.
 4. **If Component is MISSING or NOT DOWNLOADING**:
-   - Open ReMind Extension -> Click **TraceBack**.
-   - In the TraceBack popup/splash screen, verify if it asks you to download.
-   - Click **"Download AI Model"**. This forces Chrome to recognize and fetch the model.
-   - Wait for the progress bar to complete.
+    -   **Step A**: Go to `chrome://flags` and ensure `#prompt-api-for-gemini-nano` and `#prompt-api-for-gemini-nano-multimodal-input` are **Enabled**.
+    -   **Step B**: **Restart Chrome**.
+    -   **Step C**: Open ReMind Extension -> Check Status. If "Downloadable", go to **TraceBack**.
+    -   **Step D**: In TraceBack, click **"Download AI Model"**. This forces the download.
+    -   **Step E**: Watch `chrome://components/`. Wait for "Optimization Guide On Device Model" to appear and reach "Up-to-date".
+    -   **Step F**: ONLY AFTER download is complete, go to `chrome://flags/#optimization-guide-on-device-model` and set to **Enabled BypassPerfRequirement**.
+    -   **Step G**: Restart Chrome.
 5. **Verify**:
    - Go back to `chrome://components/` and refresh.
    - The **Optimization Guide On Device Model** should now appear.
@@ -64,6 +72,9 @@ chrome://settings/help
    - Check `chrome://flags/#optimization-guide-on-device-model`: **Enabled BypassPerfRequirement**
    - Check `chrome://flags/#prompt-api-for-gemini-nano`: **Enabled**
    - Check `chrome://flags/#prompt-api-for-gemini-nano-multimodal-input`: **Enabled**
+   - Check `chrome://flags/#summarization-api-for-gemini-nano`: **Enabled**
+   - Check `chrome://flags/#rewriter-api-for-gemini-nano`: **Enabled**
+   - Check `chrome://flags/#proofreader-api`: **Enabled**
    - **Relaunch** Chrome if you made changes.
 7. Return to ReMind Main Popup to confirm status is "Ready".
 
@@ -129,3 +140,4 @@ chrome://settings/help
 5. Restart Chrome and check components again
 
 ---
+

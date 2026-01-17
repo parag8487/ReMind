@@ -126,3 +126,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Notify background that content script is ready
 chrome.runtime.sendMessage({ action: 'contentScriptReady' });
+

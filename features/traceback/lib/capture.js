@@ -112,3 +112,4 @@ export class CaptureManager {
 }
 
 export default CaptureManager;
+

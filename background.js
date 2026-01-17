@@ -1,6 +1,7 @@
 // Import background logic from features
 import './features/traceback/background.js';
 import './features/adaptivefocus/background/service-worker.js';
+import './features/zenpet/background.js';
 
 console.log('ReMind: Unified background service worker initialized.');
 
@@ -15,8 +16,11 @@ chrome.runtime.onStartup.addListener(() => {
         'rezone_topic',
         'rezone_last_relevant_url',
         'last_insight_shown',
-        'rezone_paused' // Assuming pause state should reset too
+        'rezone_paused'
+        // NOTE: 'zenpet_user', 'zenpet_pet', 'zenpet_pomodoro', 'zenpet_tasks' 
+        // are INTENTIONALLY PRESERVED and NOT cleared here.
     ], () => {
         console.log("[ReMind] Session data cleared.");
     });
 });
+

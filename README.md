@@ -30,11 +30,13 @@ ReMind utilizes a modern, privacy-first architecture powered by Chrome's on-devi
   - **Pipeline**: WASM OCR -> Gemini Nano restructuring.
   - **Format**: Smart conversion to semantic HTML/CSS.
 
+
+
 ---
 
 ## ✨ Key Features
 
-ReMind integrates four core modules:
+ReMind integrates five core modules:
 
 ### 1. TraceBack
 *Never lose track of what you've seen online.*
@@ -203,7 +205,25 @@ HTMLify uses a multi-stage AI pipeline to restructure content into clean, semant
 - 📄 **PDF-to-HTML**: Extracts text from PDFs and intelligently formats it into headers, paragraphs, and lists.
 - 📝 **Text-to-HTML**: Turns messy notes into structured, styled documents.
 
-### 5. System Check (AI Diagnostics)
+### 5. ZenPet (Focus Companion)
+*Your focus companion & virtual pet.*
+
+#### 🎯 The Problem
+- **Isolation**: Working or studying alone can be monotonous and lead to burnout.
+- **Engagement**: Productivity tools often feel like utility software rather than supportive companions.
+- **Micro-Achievement**: Users need small, frequent rewards to stay motivated during long tasks.
+
+#### ✨ The Solution
+ZenPet is an AI-powered virtual pet that lives in your browser and helps you stay focused:
+- **Focus Buddy**: A persistent pet that reacts to your browsing behavior.
+- **AI Skills**: ZenPet can summarize pages, proofread your writing, and rewrite content directly via its overlay.
+- **Coin System**: Earn coins by using AI features or completing tasks, which you can use to customize ZenPet's room.
+- **Gamified Focus**: Keep your ZenPet happy and well-fed to maintain your own productivity momentum.
+
+#### 🔒 Privacy First
+ZenPet operates entirely locally. All AI features (summarization, proofreading) use Chrome's on-device Gemini Nano model. No text you select or type is ever sent to a cloud server.
+
+### 6. System Check (AI Diagnostics)
 *Know if your brain is ready.*
 
 #### 🎯 The Problem
@@ -272,10 +292,20 @@ After installing the extension:
     -   `chrome://flags/#optimization-guide-on-device-model` -> **Enabled BypassPerfRequirement**
     -   `chrome://flags/#prompt-api-for-gemini-nano` -> **Enabled**
 3.  **Hard Restart**: Fully quit Chrome (from system tray) and reopen.
-4.  **Force Download**:
-    -   Open `chrome://components`
-    -   If missing, open a new tab, hit F12 (Console), run: `await window.LanguageModel.availability()`
-    -   Refresh `chrome://components`.
+4.  **Updated Troubleshooting Workflow**:
+    1.  **First, verify flags**: Go to `chrome://flags` and ensuring the following are **Enabled**:
+        -   `#prompt-api-for-gemini-nano`
+        -   `#prompt-api-for-gemini-nano-multimodal-input`
+    2.  **Restart Chrome** completely.
+    3.  **Check ReMind Status**: Open the extension popup. If it says **"Downloadable"**, proceed.
+    4.  **Go to TraceBack**: Click the TraceBack card in the main menu.
+    5.  **Trigger Download**: Click the **"Download AI Model"** button in the TraceBack splash screen.
+    6.  **Monitor**: Open `chrome://components/`. You should see "Optimization Guide On Device Model" start downloading. Wait for it to confirm "Up-to-date".
+    7.  **Enable Optimization Guide**:
+        -   Now go back to `chrome://flags/#optimization-guide-on-device-model`.
+        -   Set it to **Enabled BypassPerfRequirement**.
+    8.  **Final Restart**: Restart Chrome one last time.
+
 
 **Still not working?**
 Try launching Chrome interactions with this command line flag:
@@ -338,6 +368,10 @@ Click the **ReMind icon** in your toolbar to open the main menu. You will see tw
 
 1.  **Adaptive Focus** (🧠): Click this to open the Learning Accessibility tools.
 2.  **TraceBack** (🔍): Click this to access your photographic memory and search history.
+3.  **ReZone** (🛡️): Set focus goals and protect your attention from drift.
+4.  **HTMLify** (📄): Convert messy content (images, PDFs) into clean HTML.
+5.  **ZenPet** (🐾): Open the virtual pet companion and focus dashboard.
+6.  **Quick AI Status** (🤖): Verify AI readiness at a glance from the bottom bar.
 
 ### Using TraceBack (Recall)
 - **Automatic Capture**: Runs silently in the background.
@@ -366,6 +400,16 @@ Click the **ReMind icon** in your toolbar to open the main menu. You will see tw
     - **Image**: Upload or capture a screenshot.
     - **PDF**: Upload a document.
 3. **Convert**: Click "Convert & Download" to get a clean, standalone HTML file.
+
+### Using ZenPet (Companion)
+1. **Open ReMind** and click **ZenPet**.
+2. **Setup Your Pet**: Give your ZenPet a name and start your first focus session.
+3. **AI Overlay**: Click the floating ZenPet bubble on any page to access AI tools:
+    - **Summarize**: Get a 3-bullet summary of the current page.
+    - **Proofread**: Select text and click Proofread to fix errors.
+    - **Rewrite**: Select text and click Rewrite for creative variations.
+4. **Pet Care**: Earn **Coins** by using AI features or completing tasks. Spend coins in the **Store** to buy new rooms for your pet.
+5. **Level Up**: Focused browsing and interaction helps your ZenPet grow and stay happy!
 
 ---
 
@@ -425,11 +469,16 @@ ReMind/
     │   ├── popup.js       # Re-Entry Logic
     │   ├── styles.css     # Shared Styles
     │   └── assets/        # Tone Icons
-    └── htmlcon/           # HTMLify Module (Content Transformer)
-        ├── background.js  # Capture Handler
-        ├── popup/         # Converter UI
-        ├── lib/           # Tesseract WASM & PDF.js
-        └── cropper/       # Image Cropping Logic
+    ├── htmlcon/           # HTMLify Module (Content Transformer)
+    │   ├── background.js  # Capture Handler
+    │   ├── popup/         # Converter UI
+    │   ├── lib/           # Tesseract WASM & PDF.js
+    │   └── cropper/       # Image Cropping Logic
+    └── zenpet/            # ZenPet Module (Focus Companion)
+        ├── background.js  # Interaction Logic
+        ├── popup/         # Pet UI & Store
+        ├── content/       # AI Assistant Overlay
+        └── assets/        # Pet & Room Assets
 ```
 
 
@@ -438,3 +487,4 @@ ReMind/
 *Made with ❤️ and 🧠 for a better web.*
 
 ---
+

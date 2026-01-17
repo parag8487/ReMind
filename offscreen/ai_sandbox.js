@@ -160,3 +160,4 @@ window.addEventListener('message', async (event) => {
 
 // Preload
 loadModel();
+

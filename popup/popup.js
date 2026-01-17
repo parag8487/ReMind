@@ -95,6 +95,11 @@ document.getElementById('btn-htmlcon').addEventListener('click', () => {
   window.location.href = '../features/htmlcon/popup/popup.html';
 });
 
+document.getElementById('btn-zenpet').addEventListener('click', () => {
+  // Navigate to ZenPet popup
+  window.location.href = '../features/zenpet/popup/index.html';
+});
+
 document.getElementById('btn-ai-check').addEventListener('click', async () => {
   const resultBox = document.getElementById('ai-result-box');
   const statusText = document.getElementById('ai-status-text');
@@ -153,6 +158,8 @@ document.getElementById('btn-ai-check').addEventListener('click', async () => {
           <a href="#" class="flag-link" data-url="chrome://flags/#optimization-guide-on-device-model">1. Optimization Guide</a>
           <a href="#" class="flag-link" data-url="chrome://flags/#prompt-api-for-gemini-nano">2. Prompt API</a>
           <a href="#" class="flag-link" data-url="chrome://flags/#prompt-api-for-gemini-nano-multimodal-input">3. Prompt API (Multimodal)</a>
+          <a href="#" class="flag-link" data-url="chrome://flags/#rewriter-api-for-gemini-nano">4. Rewriter API</a>
+          <a href="#" class="flag-link" data-url="chrome://flags/#proofreader-api">5. Proofreader API</a>
           <span style="display:block; margin-top:4px; font-style:italic;">Click to open. Set all to "Enabled".</span>
         </div>
       `;
@@ -179,5 +186,6 @@ document.getElementById('btn-ai-check').addEventListener('click', async () => {
     statusIcon.textContent = "🚫";
   }
 });
+
 
 

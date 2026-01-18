@@ -12,7 +12,9 @@
     "sidePanel",
     "tabCapture",
     "desktopCapture",
-    "offscreen"
+    "offscreen",
+    "clipboardRead",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -86,7 +88,7 @@
     "128": "assets/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://huggingface.co https://cdn.jsdelivr.net https://*.huggingface.co https://*.hf.co;"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' data: https://huggingface.co https://cdn.jsdelivr.net https://*.huggingface.co https://*.hf.co;"
   },
   "sandbox": {
     "pages": []

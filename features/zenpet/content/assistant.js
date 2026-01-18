@@ -150,7 +150,7 @@
     }
 
 
-    function getRefText(mode) {
+    async function getRefText(mode) {
         // Check if we're in Google Docs
         if (window.location.hostname.includes('docs.google.com')) {
             return getGoogleDocsText(mode);
@@ -164,7 +164,7 @@
         // For all modes, first check if text is selected
         const selection = window.getSelection();
         const selectedText = selection ? selection.toString().trim() : '';
-        
+
         if (selectedText) {
             console.log('Found selected text:', selectedText.substring(0, 50) + '...');
             return selectedText;
@@ -174,232 +174,86 @@
         if (mode === 'summarize') {
             return document.body.innerText; // Simple page text extraction
         }
-        
+
         // For proofread/rewrite with no selection, return empty string
         return '';
     }
 
-    function getGoogleDocsText(mode) {
+    async function getGoogleDocsText(mode) {
         // Google Docs specific text extraction
+        // STRATEGY: 
+        // 1. Try Clipboard API first (Most reliable for selection in Canvas-based Docs)
+        // 2. Try Standard Selection (Sometimes works)
+        // 3. Try DOM Scraping (Only for Summarize mode or last resort)
+
         try {
-            // First, try to get the current selection which is the most reliable method
+            console.log(TAG, "Attempting Clipboard API for Google Docs...");
+            // Method 1: Clipboard API (Primary)
+            // This is the only reliable way to get *exactly* what the user selected in Docs
+            const clipboardText = await new Promise((resolve) => {
+                try {
+                    // This requires the extension to have clipboard permissions
+                    if (document.execCommand('copy')) {
+                        // Wait briefly for clipboard to update
+                        setTimeout(async () => {
+                            try {
+                                const clipText = await navigator.clipboard.readText();
+                                if (clipText && clipText.trim()) {
+                                    console.log(TAG, "Clipboard success:", clipText.substring(0, 50));
+                                    resolve(clipText.trim());
+                                } else {
+                                    resolve('');
+                                }
+                            } catch (err) {
+                                console.warn("Clipboard read failed:", err);
+                                resolve('');
+                            }
+                        }, 100);
+                    } else {
+                        console.warn("execCommand('copy') failed");
+                        resolve('');
+                    }
+                } catch (e) {
+                    console.warn("Clipboard error:", e);
+                    resolve('');
+                }
+            });
+
+            if (clipboardText) return clipboardText;
+
+            // Method 2: Standard Selection (Fallback)
             const selection = window.getSelection();
             if (selection && selection.toString().trim() !== '') {
                 const selectedText = selection.toString().trim();
+                console.log('GDocs: Found standard selection:', selectedText.substring(0, 50));
+                return selectedText;
+            }
 
-                // For proofread/rewrite, return selected text if available
-                if ((mode === 'proofread' || mode === 'rewrite') && selectedText) {
-                    console.log('GDocs: Found selected text:', selectedText.substring(0, 50) + '...');
-                    return selectedText;
-                }
-
-                // For summarize, if there's a selection, we might want the whole document instead
-                if (mode === 'summarize') {
-                    // Check if the selection covers a significant portion of the document
-                    // If it's a small selection, user might want just that part summarized
-                    if (selectedText.length < 200) { // Less than 200 chars, summarize selection
-                        return selectedText;
+            // Method 3: DOM Scraping (Last Resort - primarily for Summarize Page)
+            // CAUTION: This can pick up UI elements like rulers if not careful.
+            // We only do this aggressive scraping if specific mode is asked or if really desperate
+            if (mode === 'summarize') {
+                // ... (Existing scraping logic for whole doc could go here, but let's be careful about rulers)
+                const docContainer = document.querySelector('[role="document"]');
+                if (docContainer) {
+                    // Try to extract only paragraph text to avoid UI noise
+                    const paragraphs = docContainer.querySelectorAll('.kix-paragraphrenderer');
+                    if (paragraphs.length > 0) {
+                        let text = '';
+                        paragraphs.forEach(p => text += (p.innerText || '') + '\n');
+                        return text.trim();
                     }
-                    // Otherwise, proceed to get all document text
+                    return docContainer.innerText || '';
                 }
             }
 
-            // Check if any specific element contains the selection
-            // This is important for Google Docs' complex structure
-            if (selection && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                const selectedElement = range.commonAncestorContainer;
+            // If we are in proofread/rewrite and clipboard failed, we return empty
+            // We DO NOT want to return the whole document or UI noise
+            console.log(TAG, "No selection found via Clipboard or DOM.");
+            return '';
 
-                // If the selected element or its parent is a content element, extract from there
-                let targetElement = selectedElement;
-                if (selectedElement.nodeType === Node.TEXT_NODE) {
-                    targetElement = selectedElement.parentElement;
-                }
-
-                // Look for Google Docs specific elements that might contain the selection
-                const possibleParents = [
-                    targetElement,
-                    targetElement.parentElement,
-                    targetElement.closest('[role="document"]'),
-                    targetElement.closest('.kix-document'),
-                    targetElement.closest('.docs-text-layer'),
-                    targetElement.closest('.kix-page'),
-                    targetElement.closest('.kix-pagewrapper')
-                ];
-
-                for (const element of possibleParents) {
-                    if (element) {
-                        const elementText = element.innerText || element.textContent || '';
-                        if (elementText.trim()) {
-                            // Extract only the selected portion if we're in proofread/rewrite mode
-                            if (mode === 'proofread' || mode === 'rewrite') {
-                                const rangeText = range.toString().trim();
-                                if (rangeText) {
-                                    console.log('GDocs: Extracted range text:', rangeText.substring(0, 50) + '...');
-                                    return rangeText;
-                                }
-                            }
-
-                            if (mode === 'summarize') {
-                                return elementText.trim();
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Google Docs uses iframes and Shadow DOM, try to access the main document iframe
-            try {
-                // Look for the main content iframe
-                const iframes = document.querySelectorAll('iframe');
-                for (const iframe of iframes) {
-                    try {
-                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                        if (iframeDoc) {
-                            // Look for Google Docs specific content elements inside iframe
-                            const docContent = iframeDoc.querySelector('[role="document"]') ||
-                                iframeDoc.querySelector('.kix-document') ||
-                                iframeDoc.querySelector('.docs-text-layer');
-
-                            if (docContent) {
-                                let iframeText = docContent.innerText || docContent.textContent || '';
-                                if (iframeText.trim()) {
-                                    if (mode === 'summarize') {
-                                        return iframeText.trim();
-                                    }
-
-                                    // For proofread/rewrite, prefer selection, fallback to iframe content
-                                    const selectionText = selection.toString().trim();
-                                    if ((mode === 'proofread' || mode === 'rewrite') && selectionText) {
-                                        console.log('GDocs: Returning selected text for processing:', selectionText.substring(0, 50) + '...');
-                                        return selectionText;
-                                    }
-
-                                    return iframeText.trim();
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        // Cross-origin restrictions may prevent accessing iframe content
-                        // Continue to other methods
-                    }
-                }
-            } catch (e) {
-                console.debug('Could not access iframes:', e);
-            }
-
-            // Look for Google Docs content elements in the main document
-            const docElements = [
-                '[role="document"]',
-                '.kix-document',
-                '.docs-text-layer',
-                '.kix-page',
-                '.kix-pagewrapper',
-                '.kix-lineview',
-                '.kix-paragraphrenderer',
-                '.kix-wordhtmlgenerator-word-node',
-                '[data-is-interactable="true"]'
-            ];
-
-            // For Google Docs, we need to be more aggressive in finding content
-            // since content might be dynamically updated
-            let allDocText = '';
-            for (const selector of docElements) {
-                const elements = document.querySelectorAll(selector);
-                if (elements.length > 0) {
-                    elements.forEach(el => {
-                        // Extract text content using multiple methods
-                        let text = el.innerText || el.textContent || '';
-                        if (!text.trim()) {
-                            // If innerText and textContent are empty, try child elements
-                            const textSpans = el.querySelectorAll('span, div, p');
-                            textSpans.forEach(span => {
-                                if (span.innerText) {
-                                    allDocText += span.innerText + ' ';
-                                }
-                            });
-                        } else {
-                            allDocText += text + '\n';
-                        }
-                    });
-                }
-            }
-
-            if (allDocText.trim()) {
-                if (mode === 'summarize') {
-                    return allDocText.trim();
-                }
-
-                // For proofread/rewrite, prefer selection, fallback to document content
-                const selectionText = selection.toString().trim();
-                if ((mode === 'proofread' || mode === 'rewrite') && selectionText) {
-                    console.log('GDocs: Returning selected text from doc elements:', selectionText.substring(0, 50) + '...');
-                    return selectionText;
-                }
-
-                // If no selection but we have document text, return the document text
-                return allDocText.trim();
-            }
-
-            // Alternative approach: look for content-editable areas
-            const editableAreas = document.querySelectorAll('[contenteditable="true"]:not([contenteditable="false"])');
-            if (editableAreas.length > 0) {
-                // Find the active editable area (usually where the cursor is)
-                const activeEditable = Array.from(editableAreas).find(area => area.contains(document.activeElement)) ||
-                    editableAreas[0];
-
-                if (mode === 'summarize') {
-                    return activeEditable.innerText || activeEditable.textContent || '';
-                }
-
-                // For proofread/rewrite, try to get selected text
-                const selection = window.getSelection();
-                if (selection && selection.toString().trim() !== '') {
-                    const selText = selection.toString().trim();
-                    console.log('GDocs: Returning fallback selected text:', selText.substring(0, 50) + '...');
-                    return selText;
-                }
-
-                // For Google Docs, even if no selection, return the content from the editable area
-                // as it might contain typed/pasted content
-                const editableContent = activeEditable.innerText || activeEditable.textContent || '';
-                if (editableContent.trim()) {
-                    console.log('GDocs: Found content in editable area:', editableContent.substring(0, 50) + '...');
-                    // For proofread/rewrite, we can process the entire content if no selection
-                    if (mode === 'proofread' || mode === 'rewrite') {
-                        return editableContent.trim();
-                    }
-                    return editableContent.trim();
-                }
-
-                return editableContent;
-            }
-
-            // Try to access Google Docs specific containers
-            const docContainer = document.querySelector('#docs-editor, #kix-appview-editor, .docs-text-layer');
-            if (docContainer) {
-                const containerText = docContainer.innerText || docContainer.textContent || '';
-                if (containerText.trim() && mode !== 'proofread' && mode !== 'rewrite') {
-                    return containerText.trim();
-                }
-                // For proofread/rewrite, only return if there's a selection
-                if ((mode === 'proofread' || mode === 'rewrite') && selection.toString().trim()) {
-                    return selection.toString().trim();
-                }
-                return containerText;
-            }
-
-            // Ultimate fallback to document body
-            return document.body.innerText || document.body.textContent || '';
         } catch (e) {
             console.warn('Error getting Google Docs text:', e);
-            // Fallback to regular selection if Google Docs specific method fails
-            const sel = window.getSelection();
-            const selText = sel ? sel.toString() : '';
-            if (selText.trim()) {
-                console.log('GDocs: Returning ultimate fallback selected text:', selText.substring(0, 50) + '...');
-                return selText;
-            }
             return '';
         }
     }
@@ -555,7 +409,8 @@ ${src}`;
             const startTime = Date.now();
 
             console.log(TAG, 'Getting reference text for mode:', mode);
-            const text = getRefText(mode);
+            console.log(TAG, 'Getting reference text for mode:', mode);
+            const text = await getRefText(mode);
 
             console.log(TAG, 'Retrieved text length:', text.length, 'chars');
 
@@ -581,6 +436,7 @@ ${src}`;
                         const contentText = source.innerText || source.textContent || '';
                         if (contentText.trim()) {
                             console.log(TAG, 'Found Google Docs content length:', contentText.length);
+                            console.log(TAG, 'Captured content snippet:', contentText.substring(0, 50));
                             foundContent = true;
 
                             // For proofread/rewrite, if there's content but no selection, try to get all content
@@ -700,23 +556,13 @@ ${src}`;
             const duration = endTime - startTime;
             console.log(TAG, `AI processing completed in ${duration}ms`);
 
-            // Check if we're in Google Docs and should insert the text back directly
-            if (window.location.hostname.includes('docs.google.com')) {
-                // Send the result back with instruction to insert in Google Docs
-                window.postMessage({
-                    type: 'ZENPET_RESULT',
-                    mode: mode,
-                    text: answer,
-                    insertInGoogleDocs: true
-                }, '*');
-            } else {
-                // For all other sites including Gmail, send result back for normal display
-                window.postMessage({
-                    type: 'ZENPET_RESULT',
-                    mode: mode,
-                    text: answer
-                }, '*');
-            }
+            // For Google Docs and all other sites, send result back for normal display in the overlay
+            // We avoid direct insertion in Google Docs for now due to complexity and safety (especially for Summarize)
+            window.postMessage({
+                type: 'ZENPET_RESULT',
+                mode: mode,
+                text: answer
+            }, '*');
 
             window.postMessage({ type: 'ZENPET_STATUS', message: `✅ Done! (${duration}ms)` }, '*');
 
@@ -743,7 +589,6 @@ ${src}`;
         if (msg?.type === "AI_REWRITE") handle("rewrite");
         if (msg?.type === "AI_SUMMARIZE") handle("summarize");
         sendResponse({ received: true });
-        return true;
     });
 
 })();

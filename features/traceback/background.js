@@ -288,31 +288,55 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const { id, embedding } = request.result;
       console.log(`TraceBack: AI Analysis Complete for ID ${id}`);
 
+      // Handle both successful and failed embedding generation
       if (!embedding || embedding.length === 0) {
-        console.error(`TraceBack: ERROR - No embedding received for ID ${id}!`);
+        console.warn(`TraceBack: No embedding received for ID ${id}, storing with empty embedding`);
+        // Still update the capture but with a null/empty embedding and mark as processed
+        try {
+          const capture = await storageManager.getById(id);
+          if (capture) {
+            // Update capture with AI results (even if embedding is empty)
+            const updates = {
+              processed: true,
+              embedding: embedding || [] // Store empty array if no embedding
+            };
+
+            await storageManager.updateCapture(id, updates);
+
+            // Add to running index (will skip if embedding is empty)
+            if (embedding && embedding.length > 0) {
+              const updatedCapture = { ...capture, ...updates };
+              semanticSearch.addToIndex(updatedCapture);
+            }
+
+            console.log(`TraceBack: Updated capture ${id} with AI data (empty embedding)`);
+          }
+        } catch (e) {
+          console.error('Error updating capture with AI results:', e);
+        }
       } else {
         console.log(`TraceBack: Received embedding for ID ${id}, Vector Length: ${embedding.length}`);
-      }
+        
+        try {
+          const capture = await storageManager.getById(id);
+          if (capture) {
+            // Update capture with AI results
+            const updates = {
+              processed: true,
+              embedding: embedding // Dense vector for semantic search
+            };
 
-      try {
-        const capture = await storageManager.getById(id);
-        if (capture) {
-          // Update capture with AI results
-          const updates = {
-            processed: true,
-            embedding: embedding // Dense vector for semantic search
-          };
+            await storageManager.updateCapture(id, updates);
 
-          await storageManager.updateCapture(id, updates);
+            // Add to running index
+            const updatedCapture = { ...capture, ...updates };
+            semanticSearch.addToIndex(updatedCapture);
 
-          // Add to running index
-          const updatedCapture = { ...capture, ...updates };
-          semanticSearch.addToIndex(updatedCapture);
-
-          console.log(`TraceBack: Updated capture ${id} with AI data`);
+            console.log(`TraceBack: Updated capture ${id} with AI data`);
+          }
+        } catch (e) {
+          console.error('Error updating capture with AI results:', e);
         }
-      } catch (e) {
-        console.error('Error updating capture with AI results:', e);
       }
     })();
   }

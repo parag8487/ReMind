@@ -48,6 +48,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         sendResponse({ status: 'processing_started', id: reqId });
 
+        // Verify sandbox frame is ready before sending message
+        if (!sandboxFrame.contentWindow) {
+            console.error('Offscreen: Sandbox frame not ready for analyze_capture');
+            chrome.runtime.sendMessage({
+                action: 'analysis_complete',
+                result: { id: reqId, embedding: null }
+            });
+            return false;
+        }
+
         sandboxFrame.contentWindow.postMessage({
             action: request.action,
             payload: request.payload,

@@ -26,12 +26,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     checkAIAvailability().then(sendResponse);
     return true; // Async response
   }
-
+  
   if (request.action === 'adaptText') {
     adaptText(request.text, request.profile, request.options || {}).then(sendResponse);
     return true; // Async response
   }
-
+  
   if (request.action === 'cleanupSession') {
     cleanupSession();
     sendResponse({ success: true });
@@ -52,48 +52,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  */
 async function retryWithBackoff(fn, maxRetries = CONFIG.MAX_RETRIES, operationName = 'operation') {
   let lastError;
-
+  
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       console.log(`${operationName}: Attempt ${attempt + 1}/${maxRetries + 1}`);
-
+      
       // Try the operation
       const result = await fn();
-
+      
       // Success!
       if (attempt > 0) {
         console.log(`${operationName}: Succeeded after ${attempt + 1} attempts`);
       }
-
+      
       return result;
-
+      
     } catch (error) {
       lastError = error;
       console.error(`${operationName}: Attempt ${attempt + 1} failed:`, error.message);
-
+      
       // If this was the last attempt, throw the error
       if (attempt === maxRetries) {
         console.error(`${operationName}: All ${maxRetries + 1} attempts failed`);
         throw error;
       }
-
+      
       // Calculate delay with exponential backoff
       // Formula: min(initialDelay * 2^attempt, maxDelay)
       const delay = Math.min(
         CONFIG.INITIAL_RETRY_DELAY * Math.pow(2, attempt),
         CONFIG.MAX_RETRY_DELAY
       );
-
+      
       // Add jitter (random variation) to prevent thundering herd
       // Jitter: ±20% of the delay
       const jitter = delay * 0.2 * (Math.random() * 2 - 1);
       const finalDelay = delay + jitter;
-
+      
       console.log(`${operationName}: Waiting ${Math.round(finalDelay)}ms before retry...`);
-
+      
       // Wait before retrying
       await sleep(finalDelay);
-
+      
       // If the error suggests the session is corrupted, clean it up
       if (isSessionError(error)) {
         console.log(`${operationName}: Session error detected, cleaning up...`);
@@ -101,7 +101,7 @@ async function retryWithBackoff(fn, maxRetries = CONFIG.MAX_RETRIES, operationNa
       }
     }
   }
-
+  
   // Should never reach here, but just in case
   throw lastError;
 }
@@ -117,7 +117,7 @@ function isSessionError(error) {
     'expired',
     'not initialized'
   ];
-
+  
   const errorMessage = error.message.toLowerCase();
   return sessionErrorPatterns.some(pattern => errorMessage.includes(pattern));
 }
@@ -252,7 +252,7 @@ function clearAdaptationCache() {
  */
 async function createSession() {
   const now = Date.now();
-
+  
   // Check if existing session is valid
   if (aiSession) {
     // Check if session is too old (max age exceeded)
@@ -272,27 +272,27 @@ async function createSession() {
       return aiSession;
     }
   }
-
+  
   // Create new session
   console.log('Creating new AI session...');
-
+  
   try {
     aiSession = await LanguageModel.create({
       language: "en",
       temperature: 0.7,
       topK: 40
     });
-
+    
     sessionCreationTime = now;
     sessionLastUsed = now;
-
+    
     console.log('AI session created successfully');
-
+    
     // Schedule automatic cleanup
     scheduleSessionCleanup();
-
+    
     return aiSession;
-
+    
   } catch (error) {
     console.error('Error creating AI session:', error);
     aiSession = null;
@@ -309,18 +309,18 @@ async function cleanupSession() {
   if (aiSession) {
     try {
       console.log('Cleaning up AI session...');
-
+      
       // Destroy the session to free memory
       if (typeof aiSession.destroy === 'function') {
         await aiSession.destroy();
       }
-
+      
       aiSession = null;
       sessionCreationTime = null;
       sessionLastUsed = null;
-
+      
       console.log('AI session cleaned up successfully');
-
+      
     } catch (error) {
       console.error('Error during session cleanup:', error);
       // Force cleanup even if destroy fails
@@ -342,11 +342,11 @@ function scheduleSessionCleanup() {
   if (cleanupTimeoutId) {
     clearTimeout(cleanupTimeoutId);
   }
-
+  
   // Schedule cleanup after timeout period
   cleanupTimeoutId = setTimeout(async () => {
     const now = Date.now();
-
+    
     // Double-check if session is still inactive
     if (sessionLastUsed && (now - sessionLastUsed) >= CONFIG.SESSION_TIMEOUT) {
       console.log('Auto-cleanup: Session inactive, cleaning up...');
@@ -364,21 +364,21 @@ async function checkAIAvailability() {
     if (typeof LanguageModel === 'undefined') {
       throw new Error('LanguageModel API not found');
     }
-
+    
     const availability = await LanguageModel.availability();
     console.log('AI Availability:', availability);
-
+    
     if (availability === 'readily' || availability === 'available') {
       return { available: true, status: availability };
     } else if (availability === 'after-download') {
-      return {
-        available: false,
+      return { 
+        available: false, 
         reason: 'Model needs to be downloaded',
         status: availability
       };
     } else {
-      return {
-        available: false,
+      return { 
+        available: false, 
         reason: `Status: ${availability}`,
         status: availability
       };
@@ -391,30 +391,17 @@ async function checkAIAvailability() {
 // ==============================================================
 
 async function adaptWithSummarizer(text, summaryLength = 'short') {
+  if (
+    typeof self === 'undefined' ||
+    !self.ai ||
+    !self.ai.summarizer ||
+    typeof self.ai.summarizer.create !== 'function'
+  ) {
+    return { success: false, reason: 'Summarizer API unavailable' };
+  }
+
   const allowedLengths = ['short', 'medium', 'long'];
   const lengthSetting = allowedLengths.includes(summaryLength) ? summaryLength : 'short';
-
-  // Check if Summarizer API is available
-  const hasSummarizer = typeof self !== 'undefined' &&
-    self.ai &&
-    self.ai.summarizer &&
-    typeof self.ai.summarizer.create === 'function';
-
-  if (!hasSummarizer) {
-    console.log('[AdaptiveFocus] Summarizer API unavailable. Using LanguageModel fallback.');
-    try {
-      const session = await createSession();
-      const prompt = `Summarize the following text concisely. Length: ${lengthSetting}. Focus on key points.\n\nText: ${text}\n\nSummary:`;
-      const response = await session.prompt(prompt);
-      if (response && response.trim()) {
-        return { success: true, adaptedText: response.trim() };
-      }
-      throw new Error('Empty response from fallback Prompt API');
-    } catch (fallbackError) {
-      console.error('[AdaptiveFocus] Fallback summarization failed:', fallbackError);
-      return { success: false, reason: 'Both Summarizer and Prompt API failed: ' + fallbackError.message };
-    }
-  }
 
   try {
     const summaryText = await retryWithBackoff(async () => {
@@ -441,14 +428,6 @@ async function adaptWithSummarizer(text, summaryLength = 'short') {
   } catch (error) {
     invalidateSummarizerInstance(lengthSetting);
     console.error('Summarizer adaptation failed:', error);
-    // Final fallback to Prompt API if retry fails
-    try {
-      const session = await createSession();
-      const fallbackPrompt = `Summarize this text concisely: ${text}`;
-      const fallbackResp = await session.prompt(fallbackPrompt);
-      if (fallbackResp) return { success: true, adaptedText: fallbackResp.trim() };
-    } catch (e) { }
-
     return { success: false, reason: error.message };
   }
 }
@@ -456,9 +435,9 @@ async function adaptText(text, profile, options = {}) {
   try {
     const trimmedText = (text || '').trim();
     if (trimmedText.length < 20) {
-      return {
-        success: false,
-        reason: 'Text too short (minimum 20 characters)'
+      return { 
+        success: false, 
+        reason: 'Text too short (minimum 20 characters)' 
       };
     }
 
@@ -512,19 +491,19 @@ async function adaptText(text, profile, options = {}) {
     // Adapt text with retry mechanism
     const result = await retryWithBackoff(async () => {
       const session = await createSession();
-
+      
       const prompt = getPromptForProfile(profile, workingText, options);
-
+      
       const completion = await session.prompt(prompt);
-
+      
       if (!completion || typeof completion !== 'string' || completion.trim().length === 0) {
         throw new Error('AI returned empty response');
       }
-
+      
       return completion.trim();
-
+      
     }, CONFIG.MAX_RETRIES, 'Text Adaptation');
-
+    
     const successPayload = {
       success: true,
       adaptedText: result,
@@ -535,7 +514,7 @@ async function adaptText(text, profile, options = {}) {
     };
     storeAdaptationInCache(cacheKeyPrompt, successPayload);
     return successPayload;
-
+    
   } catch (error) {
     console.error('adaptText error:', error);
     const message = error?.message || 'Adaptation failed';
@@ -562,32 +541,32 @@ function truncateAtSentence(text, maxLength) {
   if (text.length <= maxLength) {
     return text;
   }
-
+  
   // Truncate to max length
   let truncated = text.substring(0, maxLength);
-
+  
   // Find the last sentence boundary (period, question mark, exclamation)
   const sentenceEnders = ['. ', '? ', '! '];
   let lastBoundary = -1;
-
+  
   for (const ender of sentenceEnders) {
     const pos = truncated.lastIndexOf(ender);
     if (pos > lastBoundary) {
       lastBoundary = pos;
     }
   }
-
+  
   // If we found a sentence boundary, use it
   if (lastBoundary > maxLength * 0.7) { // At least 70% of target length
     return truncated.substring(0, lastBoundary + 1);
   }
-
+  
   // Otherwise, find last space to avoid cutting mid-word
   const lastSpace = truncated.lastIndexOf(' ');
   if (lastSpace > 0) {
     return truncated.substring(0, lastSpace) + '...';
   }
-
+  
   // Last resort: hard truncate
   return truncated + '...';
 }
@@ -683,7 +662,7 @@ ${text}
 
 ADAPTED TEXT:`
   };
-
+  
   return prompts[profile] || text;
 }
 
@@ -697,7 +676,7 @@ chrome.runtime.onSuspend.addListener(async () => {
   await cleanupSession();
   clearSummarizerCache();
   clearAdaptationCache();
-
+  
   if (cleanupTimeoutId) {
     clearTimeout(cleanupTimeoutId);
   }
@@ -714,11 +693,11 @@ self.addEventListener('beforeunload', async () => {
 // Periodic health check (every 10 minutes)
 setInterval(async () => {
   const now = Date.now();
-
+  
   // Check if session exists but is stale
   if (aiSession && sessionLastUsed) {
     const inactiveDuration = now - sessionLastUsed;
-
+    
     if (inactiveDuration > CONFIG.SESSION_TIMEOUT) {
       console.log('Health check: Session inactive, cleaning up...');
       await cleanupSession();
@@ -727,4 +706,3 @@ setInterval(async () => {
 }, 10 * 60 * 1000); // Every 10 minutes
 
 console.log('Service worker initialization complete');
-

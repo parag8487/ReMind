@@ -296,7 +296,7 @@
     bottom: 70px;
     /* Stack ABOVE the nav bar (50px + 20px padding) */
     left: 0;
-    width: 400px;
+    width: 450px;
     /* Fixed width to match body */
 
     height: 180px;
@@ -1066,8 +1066,9 @@ body {
     position: fixed;
     /* CHANGED: Stick to viewport top */
     top: 0;
-    left: 0;
-    width: 100%;
+    /* left: 0; removed to use right: 0 */
+    right: 0px;
+    width: 420px;
     height: 60px;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -1114,9 +1115,9 @@ body {
 /* --- Messages Area --- */
 .chat-messages {
     flex: 1;
-    width: 100%;
-    padding: 80px 40px 140px 15px;
-    /* CHANGED: Right 40px */
+    width: 420px;
+    padding: 80px 15px 140px 15px;
+    /* CHANGED: Right 15px */
     /* Top: Header space, Bottom: Input + Nav space */
     overflow-y: auto;
     display: flex;
@@ -1256,8 +1257,9 @@ body {
     position: fixed;
     /* CHANGED: Stick to viewport */
     bottom: 80px;
-    left: 0;
-    width: 100%;
+    /* left: 0; removed */
+    right: 0px;
+    width: 420px;
     padding: 10px 20px 15px;
     background: #f8f9fa;
     z-index: 1999;

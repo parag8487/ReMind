@@ -35,7 +35,7 @@
                 expectedInputLanguages: ['en'],
                 outputLanguage: 'en'
             });
-            
+
             console.log('📝 Proofreader session created successfully');
             return session;
         } catch (error) {
@@ -47,24 +47,18 @@
     async function createSession(systemPrompt) {
         // 1. Try Legacy/Origin Trial API (User Requested) -> Returns { session, type: 'legacy' }
         if (typeof window.LanguageModel !== 'undefined') {
+            // Prioritize simple creation with systemPrompt as initialPrompts is causing DOMException on some versions
             try {
-                if (window.LanguageModel.capabilities) {
-                    const status = await window.LanguageModel.capabilities();
-                    if (status.available === 'no') return null;
-                } else if (window.LanguageModel.availability) {
-                    const status = await window.LanguageModel.availability();
-                    if (status === 'no') return null;
-                }
-                const session = await window.LanguageModel.create({
-                    initialPrompts: [{ role: 'system', content: systemPrompt }]
-                });
+                const session = await window.LanguageModel.create({ systemPrompt });
                 return { session, type: 'legacy' };
             } catch (e) {
-                console.warn('LanguageModel creation with initialPrompts failed, trying simple object', e);
+                console.log('Simple LanguageModel creation failed, trying initialPrompts', e);
                 try {
-                    const session = await window.LanguageModel.create({ systemPrompt });
+                    const session = await window.LanguageModel.create({
+                        initialPrompts: [{ role: 'system', content: systemPrompt }]
+                    });
                     return { session, type: 'legacy' };
-                } catch (e2) { 
+                } catch (e2) {
                     console.warn('LanguageModel creation failed completely', e2);
                     // Try fallback to basic prompt API
                     try {
@@ -84,7 +78,7 @@
                 if (caps.available === 'no') return null;
                 const session = await window.ai.languageModel.create({ systemPrompt });
                 return { session, type: 'standard' };
-            } catch (e) { 
+            } catch (e) {
                 console.warn('window.ai creation failed, trying basic create', e);
                 try {
                     // Try without system prompt first
@@ -131,19 +125,19 @@
             if (!proofreaderSession) {
                 proofreaderSession = await initializeProofreader();
             }
-            
+
             if (proofreaderSession) {
                 try {
                     const result = await proofreaderSession.proofread(text);
-                    // The corrected text might be in result.text or result.correctedText
-                    return result.text || result.correctedText || result.corrected || text;
+                    // According to Chrome AI Proofreader API docs, the corrected text is in result.correctedInput
+                    return result.correctedInput || result.text || result.correctedText || result.corrected || text;
                 } catch (error) {
                     console.warn('Proofreader API failed, falling back to Language Model:', error);
                     // Reset proofreader session on error to try again next time
                     proofreaderSession = null;
                 }
             }
-            
+
             // If Proofreader API isn't available or fails, fall back to Language Model
             if (!promptSession) {
                 const systemPrompt = 'You are ZenPet, a helpful cognitive assistant. You excel at summarizing complex information, proofreading text for clarity, and creative rewriting. Always be concise and professional.';
@@ -153,11 +147,18 @@
             if (!promptSession) {
                 throw new Error('AI Unavailable (LanguageModel/window.ai not found)');
             }
-            
-            const prompt = 'Proofread the following text for grammar, spelling, and clarity. Fix errors while preserving the original meaning and tone. Return only the corrected text.\n\n' + text;
+
+            const prompt = `Task: Correct all spelling, grammar, and punctuation errors in the given text. Return ONLY the corrected text without any additional commentary.
+
+Example:
+Input: Helo world. Im here.
+Output: Hello world. I'm here.
+
+Input: ${text}
+Output:`;
             return await runPrompt(promptSession, prompt);
         }
-        
+
         // Handle other modes (rewrite, summarize, prompt)
         if (!promptSession) {
             const systemPrompt = 'You are ZenPet, a helpful cognitive assistant. You excel at summarizing complex information, proofreading text for clarity, and creative rewriting. Always be concise and professional.';

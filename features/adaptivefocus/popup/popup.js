@@ -226,4 +226,3 @@ document.getElementById('helpLink').addEventListener('click', (e) => {
 
 // Initialize on load
 init();
-

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>AI Test</h1>
+<div id="log"></div>
+<script>
+  function log(msg) {
+    document.getElementById('log').innerText += msg + '\n';
+    console.log(msg);
+  }
+
+  async function testConfig(name, config) {
+    log(`Testing config: ${name}`);
+    try {
+      let session;
+      if (typeof LanguageModel !== 'undefined') {
+          session = await LanguageModel.create(config);
+      } else if (self.ai && self.ai.languageModel) {
+          session = await self.ai.languageModel.create(config);
+      } else {
+          log('LanguageModel API not found');
+          return;
+      }
+      log(`Success: ${name}`);
+      if (session && typeof session.destroy === 'function') {
+          await session.destroy();
+      }
+    } catch (e) {
+      log(`Error ${name}: ${e.message}`);
+    }
+  }
+
+  async function run() {
+    // 1. Current config
+    await testConfig('Current', { language: "en", temperature: 0.7, topK: 40 });
+    
+    // 2. Initial Prompts
+    await testConfig('InitialPrompts', { 
+        initialPrompts: [{ role: "system", content: "You are a helpful assistant." }] 
+    });
+
+    // 3. System Prompt
+    await testConfig('SystemPrompt', { 
+        systemPrompt: "You are a helpful assistant." 
+    });
+
+    // 4. Output Language ?
+    await testConfig('OutputLanguage', { 
+        outputLanguage: "en" 
+    });
+
+    log('Done.');
+  }
+  run();
+</script>
+</body>
+</html>

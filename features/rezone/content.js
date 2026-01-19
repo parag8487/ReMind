@@ -128,12 +128,12 @@ class ReZone {
 
     startDistractionTimer() {
         this.clearDistractionTimer();
-        console.log(`%c[ReZone] Timer Started (10s) for: ${document.title.substring(0, 20)}...`, "color: #aaa");
-        // Check after 10 seconds of continuous focus
+        console.log(`%c[ReZone] Timer Started (15s) for: ${document.title.substring(0, 20)}...`, "color: #aaa");
+        // Check after 15 seconds of continuous focus
         this.distractionTimer = setTimeout(() => {
             console.log("%c[ReZone] Timer Fired! Checking...", "color: orange");
             this.checkDistraction();
-        }, 10000);
+        }, 15000);
     }
 
     clearDistractionTimer() {
@@ -197,7 +197,7 @@ class ReZone {
         if (this.isPaused) return;
         console.log("[ReZone] Window Focused");
         this.endDrift(); // Check if we should show Re-Entry
-        this.startDistractionTimer(); // Start the 20s countdown for distraction alerts
+        this.startDistractionTimer(); // Start the 15s countdown for distraction alerts
     }
 
     startDrift() {
